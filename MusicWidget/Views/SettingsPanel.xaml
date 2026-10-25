@@ -114,11 +114,12 @@
       <Setter Property="ItemContainerStyle">
         <Setter.Value>
           <Style TargetType="ListBoxItem">
-            <Setter Property="Background" Value="Transparent"/>
+            <!-- Slightly lifted surface so playlist rows read as cards, not flat text. -->
+            <Setter Property="Background" Value="#18FFFFFF"/>
             <Setter Property="Foreground" Value="{StaticResource Brush.Text}"/>
             <Setter Property="Padding" Value="12,12"/>
             <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Margin" Value="0,4"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Top"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="PlaylistListItem_PreviewMouseLeftButtonDown"/>
@@ -127,8 +128,8 @@
                 <ControlTemplate TargetType="ListBoxItem">
                   <Border x:Name="bg"
                           Background="{TemplateBinding Background}"
-                          BorderBrush="Transparent"
-                          BorderThickness="0"
+                          BorderBrush="#28FFFFFF"
+                          BorderThickness="1"
                           CornerRadius="10"
                           Padding="{TemplateBinding Padding}"
                           UseLayoutRounding="False"
@@ -139,12 +140,20 @@
                   </Border>
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="bg" Property="Background" Value="#0FFFFFFF"/>
+                      <Setter TargetName="bg" Property="Background" Value="#24FFFFFF"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="#3AFFFFFF"/>
                     </Trigger>
                     <Trigger Property="IsSelected" Value="True">
-                      <Setter TargetName="bg" Property="Background" Value="#141F2937"/>
+                      <Setter TargetName="bg" Property="Background" Value="#1A2563EB"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="#402563EB"/>
                       <Setter Property="Foreground" Value="{StaticResource Brush.Text}"/>
                     </Trigger>
+                    <DataTrigger Binding="{Binding}" Value="{x:Static models:PlaylistDivider.Instance}">
+                      <Setter TargetName="bg" Property="Background" Value="Transparent"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="Transparent"/>
+                      <Setter TargetName="bg" Property="BorderThickness" Value="0"/>
+                      <Setter TargetName="bg" Property="Padding" Value="0"/>
+                    </DataTrigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
               </Setter.Value>
@@ -156,6 +165,7 @@
                 <Setter Property="IsTabStop" Value="False"/>
                 <Setter Property="Padding" Value="0"/>
                 <Setter Property="Margin" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
               </DataTrigger>
             </Style.Triggers>
           </Style>
@@ -337,7 +347,7 @@
                 Width="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=40}"
                 Height="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=40}"
                 CornerRadius="8"
-                Background="#FF1A1F27"
+                Background="White"
                 ClipToBounds="True"
                 UseLayoutRounding="False"
                 SnapsToDevicePixels="False"
@@ -345,7 +355,7 @@
                 RenderOptions.BitmapScalingMode="HighQuality"
                 Margin="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomThickness}, ConverterParameter='0,0,10,0'}">
           <Grid>
-            <!-- Placeholder when no cover is available -->
+            <!-- Placeholder when no cover is available (white + dark music icon) -->
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center">
               <StackPanel.Style>
@@ -358,7 +368,7 @@
                 </Style>
               </StackPanel.Style>
               <Path Data="{StaticResource Icon.Music}"
-                    Fill="#FF64748B"
+                    Fill="#FF0F172A"
                     Stretch="Uniform"
                     Width="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
                     Height="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
@@ -1090,19 +1100,19 @@
               <Border Grid.Column="0"
                       Width="52" Height="52"
                       CornerRadius="10"
-                      Background="#FF1A1F27"
+                      Background="White"
                       ClipToBounds="True">
                 <Grid>
                   <Path x:Name="NowPlayingPlaceholderIcon"
                         Data="{StaticResource Icon.Music}"
-                        Fill="#FF64748B"
+                        Fill="#FF0F172A"
                         Stretch="Uniform"
                         Width="20" Height="20"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"/>
                   <TextBlock x:Name="NowPlayingInitials"
                              Text=""
-                             Foreground="{StaticResource Brush.TextDim}"
+                             Foreground="#FF0F172A"
                              FontFamily="{StaticResource Font.Display}"
                              FontWeight="SemiBold"
                              FontSize="16"
@@ -1289,7 +1299,11 @@
                         Value="80"
                         Height="24"
                         VerticalAlignment="Center"
+                        IsMoveToPointEnabled="True"
                         ValueChanged="FooterVolume_ValueChanged"
+                        PreviewMouseLeftButtonDown="FooterVolume_PreviewMouseDown"
+                        PreviewMouseLeftButtonUp="FooterVolume_PreviewMouseUp"
+                        LostMouseCapture="FooterVolume_LostMouseCapture"
                         ToolTip="Volume"/>
               </Grid>
               <Grid Margin="0,2,0,0"
@@ -1311,12 +1325,16 @@
                         Maximum="2.0"
                         SmallChange="0.05"
                         LargeChange="0.25"
-                        TickFrequency="0.25"
+                        TickFrequency="0.05"
                         IsSnapToTickEnabled="False"
                         Value="1.0"
                         Height="24"
                         VerticalAlignment="Center"
+                        IsMoveToPointEnabled="True"
                         ValueChanged="FooterSpeed_ValueChanged"
+                        PreviewMouseLeftButtonDown="FooterSpeed_PreviewMouseDown"
+                        PreviewMouseLeftButtonUp="FooterSpeed_PreviewMouseUp"
+                        LostMouseCapture="FooterSpeed_LostMouseCapture"
                         ToolTip="Playback speed"/>
                 <TextBlock x:Name="FooterSpeedLabel"
                            Grid.Column="2"
@@ -1352,7 +1370,11 @@
                         Value="0"
                         Height="24"
                         VerticalAlignment="Center"
+                        IsMoveToPointEnabled="True"
                         ValueChanged="FooterProgress_ValueChanged"
+                        PreviewMouseLeftButtonDown="FooterProgress_PreviewMouseDown"
+                        PreviewMouseLeftButtonUp="FooterProgress_PreviewMouseUp"
+                        LostMouseCapture="FooterProgress_LostMouseCapture"
                         ToolTip="Seek"/>
                 <TextBlock x:Name="FooterDurationLabel"
                            Grid.Column="2"

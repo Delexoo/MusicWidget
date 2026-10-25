@@ -134,10 +134,17 @@
                     Width="44"
                     Height="44"
                     CornerRadius="6"
-                    Background="{StaticResource Brush.WidgetArt}"
+                    Background="White"
                     ClipToBounds="True"
                     SnapsToDevicePixels="True">
               <Grid Width="44" Height="44">
+                <Path x:Name="AlbumArtPlaceholderIcon"
+                      Data="{StaticResource Icon.Music}"
+                      Fill="#FF0F172A"
+                      Stretch="Uniform"
+                      Width="18" Height="18"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"/>
                 <Border x:Name="AlbumArtImageHost"
                         Visibility="Collapsed"
                         CornerRadius="6"
@@ -150,13 +157,14 @@
                   </Border.Background>
                 </Border>
                 <TextBlock x:Name="AlbumArtInitials"
-                           Text="♪"
-                           Foreground="{StaticResource Brush.TextDim}"
+                           Text=""
+                           Foreground="#FF0F172A"
                            FontFamily="{StaticResource Font.Display}"
                            FontWeight="SemiBold"
                            FontSize="14"
                            HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center"
+                           Visibility="Collapsed"/>
               </Grid>
             </Border>
             <Thumb Style="{StaticResource MoveThumbStyle}"

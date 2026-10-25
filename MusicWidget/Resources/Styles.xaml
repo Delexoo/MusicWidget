@@ -637,7 +637,7 @@
   <Style TargetType="Slider">
     <Setter Property="Background" Value="{StaticResource Brush.SurfaceHigh}"/>
     <Setter Property="Foreground" Value="{StaticResource Brush.Blue}"/>
-    <Setter Property="MinHeight" Value="24"/>
+    <Setter Property="MinHeight" Value="28"/>
     <Setter Property="Focusable" Value="False"/>
     <Setter Property="IsTabStop" Value="False"/>
     <Setter Property="IsMoveToPointEnabled" Value="True"/>
@@ -646,45 +646,48 @@
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
           <!-- Tall transparent hit strip so the thin track is easy to grab. -->
-          <Grid Height="24" VerticalAlignment="Center" Background="Transparent">
-            <Border Height="5"
-                    CornerRadius="2.5"
+          <Grid Height="28" VerticalAlignment="Center" Background="Transparent">
+            <Border Height="4"
+                    CornerRadius="2"
                     Background="{TemplateBinding Background}"
                     VerticalAlignment="Center"
-                    Margin="6,0"
-                    SnapsToDevicePixels="True"/>
-            <Track x:Name="PART_Track" Margin="6,0">
+                    Margin="8,0"
+                    IsHitTestVisible="False"/>
+            <Track x:Name="PART_Track" Margin="8,0">
               <Track.DecreaseRepeatButton>
                 <RepeatButton Command="Slider.DecreaseLarge"
-                              Focusable="False" IsTabStop="False">
+                              Focusable="False" IsTabStop="False"
+                              Delay="999999" Interval="999999">
                   <RepeatButton.Template>
                     <ControlTemplate TargetType="RepeatButton">
-                      <Border Height="5"
-                              CornerRadius="2.5"
+                      <Border Height="4"
+                              CornerRadius="2"
                               Background="{StaticResource Brush.Blue}"
                               VerticalAlignment="Center"
-                              SnapsToDevicePixels="True"/>
+                              IsHitTestVisible="False"/>
                     </ControlTemplate>
                   </RepeatButton.Template>
                 </RepeatButton>
               </Track.DecreaseRepeatButton>
               <Track.IncreaseRepeatButton>
                 <RepeatButton Command="Slider.IncreaseLarge"
-                              Focusable="False" IsTabStop="False">
+                              Focusable="False" IsTabStop="False"
+                              Delay="999999" Interval="999999">
                   <RepeatButton.Template>
                     <ControlTemplate TargetType="RepeatButton">
-                      <Border Background="Transparent" Height="24"/>
+                      <Border Background="Transparent" Height="28"/>
                     </ControlTemplate>
                   </RepeatButton.Template>
                 </RepeatButton>
               </Track.IncreaseRepeatButton>
               <Track.Thumb>
-                <Thumb Focusable="False" IsTabStop="False">
+                <Thumb Focusable="False" IsTabStop="False"
+                       Width="28" Height="28">
                   <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
-                      <Grid Width="22" Height="22" Background="Transparent">
+                      <Grid Background="Transparent">
                         <Ellipse x:Name="dot"
-                                 Width="13" Height="13"
+                                 Width="14" Height="14"
                                  Fill="White"
                                  Stroke="{StaticResource Brush.Blue}"
                                  StrokeThickness="2"
@@ -693,13 +696,13 @@
                       </Grid>
                       <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                          <Setter TargetName="dot" Property="Width" Value="15"/>
-                          <Setter TargetName="dot" Property="Height" Value="15"/>
+                          <Setter TargetName="dot" Property="Width" Value="16"/>
+                          <Setter TargetName="dot" Property="Height" Value="16"/>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
                           <Setter TargetName="dot" Property="Fill" Value="{StaticResource Brush.Blue}"/>
-                          <Setter TargetName="dot" Property="Width" Value="15"/>
-                          <Setter TargetName="dot" Property="Height" Value="15"/>
+                          <Setter TargetName="dot" Property="Width" Value="16"/>
+                          <Setter TargetName="dot" Property="Height" Value="16"/>
                         </Trigger>
                       </ControlTemplate.Triggers>
                     </ControlTemplate>

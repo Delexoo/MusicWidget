@@ -1475,10 +1475,13 @@ public partial class WidgetWindow : Window
             TrackArtist.Text = string.Empty;
             TrackTitle.ToolTip = null;
             TrackArtist.ToolTip = null;
-                AlbumArtInitials.Text = "♪";
-                AlbumArtInitials.Visibility = Visibility.Visible;
-                AlbumArtImageHost.Visibility = Visibility.Collapsed;
                 AlbumArtBrush.ImageSource = null;
+                AlbumArtImageHost.Visibility = Visibility.Collapsed;
+                AlbumArtInitials.Visibility = Visibility.Collapsed;
+                if (AlbumArtPlaceholderIcon is not null)
+                {
+                    AlbumArtPlaceholderIcon.Visibility = Visibility.Visible;
+                }
                 return;
             }
 
@@ -1492,13 +1495,20 @@ public partial class WidgetWindow : Window
                 AlbumArtBrush.ImageSource = t.ArtworkSource;
                 AlbumArtImageHost.Visibility = Visibility.Visible;
                 AlbumArtInitials.Visibility = Visibility.Collapsed;
+                if (AlbumArtPlaceholderIcon is not null)
+                {
+                    AlbumArtPlaceholderIcon.Visibility = Visibility.Collapsed;
+                }
             }
             else
             {
                 AlbumArtBrush.ImageSource = null;
                 AlbumArtImageHost.Visibility = Visibility.Collapsed;
-                AlbumArtInitials.Text = "♪";
-                AlbumArtInitials.Visibility = Visibility.Visible;
+                AlbumArtInitials.Visibility = Visibility.Collapsed;
+                if (AlbumArtPlaceholderIcon is not null)
+                {
+                    AlbumArtPlaceholderIcon.Visibility = Visibility.Visible;
+                }
             }
         }
         catch (Exception ex)

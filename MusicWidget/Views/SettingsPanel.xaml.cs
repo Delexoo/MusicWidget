@@ -75,6 +75,10 @@ public partial class SettingsPanel : UserControl
     private bool _suppressVolumeChanged;
     private bool _suppressProgressChanged;
     private bool _suppressSpeedChanged;
+    private bool _scrubbingProgress;
+    private bool _adjustingVolume;
+    private bool _adjustingSpeed;
+    private bool _updateInstallInFlight;
     private int _lastNonZeroVolume = 80;
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _backgroundDownloadHideTimer;
@@ -532,7 +536,10 @@ public partial class SettingsPanel : UserControl
 
     private void UpdateFooterProgress()
     {
-        if (FooterProgressSlider.IsMouseCaptureWithin)
+        // Never fight the user while they scrub — that caused the seek bar to jump.
+        if (_scrubbingProgress
+            || FooterProgressSlider.IsMouseCaptureWithin
+            || FooterProgressSlider.IsMouseOver && Mouse.LeftButton == MouseButtonState.Pressed)
         {
             return;
         }
@@ -546,23 +553,72 @@ public partial class SettingsPanel : UserControl
         FooterProgressSlider.IsEnabled = track is not null && durationMs > 0;
 
         _suppressProgressChanged = true;
-        if (durationMs > 0)
+        try
         {
-            FooterProgressSlider.Maximum = durationMs;
-            FooterProgressSlider.Value = Math.Clamp(positionMs, 0, durationMs);
+            if (durationMs > 0)
+            {
+                if (Math.Abs(FooterProgressSlider.Maximum - durationMs) > 0.5)
+                {
+                    FooterProgressSlider.Maximum = durationMs;
+                }
+
+                // Skip tiny timer updates so the thumb doesn't stutter.
+                if (Math.Abs(FooterProgressSlider.Value - positionMs) >= 250)
+                {
+                    FooterProgressSlider.Value = Math.Clamp(positionMs, 0, durationMs);
+                }
+            }
+            else
+            {
+                FooterProgressSlider.Maximum = 1;
+                FooterProgressSlider.Value = 0;
+            }
         }
-        else
+        finally
         {
-            FooterProgressSlider.Maximum = 1;
-            FooterProgressSlider.Value = 0;
+            _suppressProgressChanged = false;
         }
-        _suppressProgressChanged = false;
+    }
+
+    private void FooterProgress_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            _scrubbingProgress = true;
+        }
+    }
+
+    private void FooterProgress_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            FinishProgressScrub();
+        }
+    }
+
+    private void FooterProgress_LostMouseCapture(object sender, MouseEventArgs e) => FinishProgressScrub();
+
+    private void FinishProgressScrub()
+    {
+        if (!_scrubbingProgress || FooterProgressSlider is null)
+        {
+            return;
+        }
+
+        _scrubbingProgress = false;
+        var durationMs = App.Player.DurationMs;
+        if (durationMs <= 0)
+        {
+            return;
+        }
+
+        var positionMs = (long)Math.Clamp(FooterProgressSlider.Value, 0, durationMs);
+        FooterPositionLabel.Text = FormatPlaybackTime(positionMs);
+        App.Player.SeekToMilliseconds(positionMs);
     }
 
     private void FooterProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        // Timer-driven updates set _suppressProgressChanged; anything else is user input
-        // (drag or click-to-point), so seek immediately.
         if (_suppressProgressChanged || !_isLoaded || FooterProgressSlider is null)
         {
             return;
@@ -576,7 +632,42 @@ public partial class SettingsPanel : UserControl
 
         var positionMs = (long)Math.Clamp(e.NewValue, 0, durationMs);
         FooterPositionLabel.Text = FormatPlaybackTime(positionMs);
-        App.Player.SeekToMilliseconds(positionMs);
+
+        // Seek once when scrubbing ends. Mid-drag seeks stutter LibVLC.
+        if (!_scrubbingProgress && !FooterProgressSlider.IsMouseCaptureWithin)
+        {
+            App.Player.SeekToMilliseconds(positionMs);
+        }
+    }
+
+    private void FooterVolume_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            _adjustingVolume = true;
+        }
+    }
+
+    private void FooterVolume_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            FinishVolumeAdjust();
+        }
+    }
+
+    private void FooterVolume_LostMouseCapture(object sender, MouseEventArgs e) => FinishVolumeAdjust();
+
+    private void FinishVolumeAdjust()
+    {
+        if (!_adjustingVolume)
+        {
+            return;
+        }
+
+        _adjustingVolume = false;
+        App.Settings.Current.Volume = App.Player.Volume;
+        App.Settings.ScheduleSave();
     }
 
     private void FooterVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -593,9 +684,58 @@ public partial class SettingsPanel : UserControl
 
         App.Player.Volume = v;
         App.Settings.Current.Volume = v;
-        App.Settings.ScheduleSave();
+        if (!_adjustingVolume)
+        {
+            App.Settings.ScheduleSave();
+        }
 
         UpdateFooterVolumeIcon();
+    }
+
+    private void FooterSpeed_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            _adjustingSpeed = true;
+        }
+    }
+
+    private void FooterSpeed_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            FinishSpeedAdjust();
+        }
+    }
+
+    private void FooterSpeed_LostMouseCapture(object sender, MouseEventArgs e) => FinishSpeedAdjust();
+
+    private void FinishSpeedAdjust()
+    {
+        if (!_adjustingSpeed || FooterSpeedSlider is null)
+        {
+            return;
+        }
+
+        _adjustingSpeed = false;
+        var speed = Math.Clamp(FooterSpeedSlider.Value, 0.5, 2.0);
+        App.Player.SetRate((float)speed, snapNearNormal: true);
+        var applied = App.Player.Rate;
+        App.Settings.Current.PlaybackSpeed = applied;
+        UpdateFooterSpeedLabel(applied);
+
+        if (Math.Abs(FooterSpeedSlider.Value - applied) > 0.001)
+        {
+            _suppressSpeedChanged = true;
+            try
+            {
+                FooterSpeedSlider.Value = applied;
+            }
+            finally
+            {
+                _suppressSpeedChanged = false;
+            }
+        }
     }
 
     private void FooterSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -608,20 +748,10 @@ public partial class SettingsPanel : UserControl
         }
 
         var speed = Math.Clamp(e.NewValue, 0.5, 2.0);
-        // Apply live (with soft snap near 1.0 inside the player) but don't yank the
-        // thumb back while the user is still dragging — that felt jumpy.
-        App.Player.SetRate((float)speed);
-        var applied = App.Player.Rate;
-        App.Settings.Current.PlaybackSpeed = applied;
-        UpdateFooterSpeedLabel(applied);
-
-        if (!FooterSpeedSlider.IsMouseCaptureWithin
-            && Math.Abs(FooterSpeedSlider.Value - applied) > 0.001)
-        {
-            _suppressSpeedChanged = true;
-            FooterSpeedSlider.Value = applied;
-            _suppressSpeedChanged = false;
-        }
+        // Live rate while dragging (no snap). Snap-to-1.0 happens on mouse release.
+        App.Player.SetRate((float)speed, snapNearNormal: false);
+        UpdateFooterSpeedLabel(speed);
+        App.Settings.Current.PlaybackSpeed = App.Player.Rate;
     }
 
     private void UpdateFooterSpeedLabel(double speed)
@@ -2830,22 +2960,24 @@ public partial class SettingsPanel : UserControl
 
     private async void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_updateInstallInFlight || _updateCheckInFlight)
+        {
+            return;
+        }
+
         try
         {
-            if (_pendingUpdate?.IsUpdateAvailable == true
-                && !string.IsNullOrWhiteSpace(_pendingUpdate.DownloadUrl))
+            if (_pendingUpdate?.IsUpdateAvailable == true)
             {
-                InstallPendingUpdate();
+                await InstallPendingUpdateAsync().ConfigureAwait(true);
                 return;
             }
 
             await CheckForUpdatesAsync(showUpToDateMessage: true).ConfigureAwait(true);
 
-            if (_pendingUpdate?.IsUpdateAvailable == true
-                && !string.IsNullOrWhiteSpace(_pendingUpdate.DownloadUrl))
+            if (_pendingUpdate?.IsUpdateAvailable == true)
             {
-                // Offer install immediately after a successful check finds a newer build.
-                InstallPendingUpdate();
+                await InstallPendingUpdateAsync().ConfigureAwait(true);
             }
         }
         catch (Exception ex)
@@ -2856,34 +2988,24 @@ public partial class SettingsPanel : UserControl
         }
     }
 
-    private void InstallPendingUpdate()
+    private async Task InstallPendingUpdateAsync()
     {
         var update = _pendingUpdate;
-        if (update is null || !update.IsUpdateAvailable)
+        if (update is null || !update.IsUpdateAvailable || _updateInstallInFlight)
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(update.DownloadUrl))
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = AppBranding.GitHubReleasesUrl,
-                    UseShellExecute = true,
-                });
-            }
-            catch (Exception ex)
-            {
-                ModernMessageBox.ShowWarning("Could not open releases page: " + ex.Message);
-            }
-
-            return;
-        }
+        // Always resolve to a GitHub Releases download URL (asset or /latest/download).
+        var downloadUrl = string.IsNullOrWhiteSpace(update.DownloadUrl)
+            ? UpdateService.LatestInstallerDownloadUrl
+            : update.DownloadUrl!;
+        update = update with { DownloadUrl = downloadUrl };
+        _pendingUpdate = update;
 
         var confirmed = ModernMessageBox.ConfirmYesNo(
-            $"Install MusicWidget {update.LatestVersion}?\n\nMusicWidget will close now, install the update, and reopen automatically.",
+            $"Download and install MusicWidget {update.LatestVersion} from GitHub?\n\n" +
+            "MusicWidget will download the official installer, then close and reopen after setup.",
             "Install update",
             ModernMessageBox.Severity.Question);
         if (!confirmed)
@@ -2891,25 +3013,65 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
+        _updateInstallInFlight = true;
         UpdateButton.IsEnabled = false;
-        UpdateButton.ToolTip = "Starting update...";
+        UpdateButton.ToolTip = "Downloading update from GitHub...";
+        if (UpdateButtonIcon is not null)
+        {
+            UpdateButtonIcon.Fill = (Brush)FindResource("Brush.Blue");
+        }
 
         try
         {
-            if (!App.Updates.BeginDetachedUpdateAndShutdown(update))
+            var progress = new Progress<double>(p =>
             {
-                UpdateButton.IsEnabled = true;
-                ApplyUpdateButtonState(update);
-                ModernMessageBox.ShowWarning(
-                    "Could not start the update. Try again, or download the installer from GitHub Releases.");
+                if (UpdateButton is null)
+                {
+                    return;
+                }
+
+                UpdateButton.ToolTip = p < 0
+                    ? "Downloading update from GitHub..."
+                    : $"Downloading update… {(int)Math.Round(Math.Clamp(p, 0, 1) * 100)}%";
+            });
+
+            // Download the official GitHub Releases installer in-process (with %),
+            // then hand off to a silent install + relaunch script.
+            string installerPath;
+            try
+            {
+                installerPath = await App.Updates
+                    .DownloadInstallerAsync(downloadUrl, progress)
+                    .ConfigureAwait(true);
+            }
+            catch (Exception downloadEx)
+            {
+                CrashLog.Write(downloadEx, "SettingsPanel.InstallPendingUpdateAsync.Download");
+                // Fallback: PowerShell downloads the same GitHub URL after we close.
+                UpdateButton.ToolTip = "Starting update download...";
+                if (!App.Updates.BeginDetachedUpdateAndShutdown(update))
+                {
+                    throw;
+                }
+
+                return;
+            }
+
+            UpdateButton.ToolTip = "Installing update...";
+            if (!App.Updates.BeginSilentInstallFromFileAndShutdown(installerPath))
+            {
+                throw new InvalidOperationException("Could not start the downloaded installer.");
             }
         }
         catch (Exception ex)
         {
-            CrashLog.Write(ex, "SettingsPanel.InstallPendingUpdate");
+            CrashLog.Write(ex, "SettingsPanel.InstallPendingUpdateAsync");
+            _updateInstallInFlight = false;
             UpdateButton.IsEnabled = true;
             ApplyUpdateButtonState(update);
-            ModernMessageBox.ShowWarning("Could not start the update: " + ex.Message);
+            ModernMessageBox.ShowWarning(
+                "Could not download the update from GitHub: " + ex.Message +
+                "\n\nYou can also grab MusicWidget-Setup-x64.exe from the Releases page.");
         }
     }
 

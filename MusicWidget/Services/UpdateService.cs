@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -12,6 +13,12 @@ namespace MusicWidget.Services;
 public sealed class UpdateService
 {
     public const string InstallerAssetName = "MusicWidget-Setup-x64.exe";
+
+    /// <summary>
+    /// Stable GitHub Releases URL that always redirects to the newest installer asset.
+    /// </summary>
+    public static string LatestInstallerDownloadUrl =>
+        $"https://github.com/{AppBranding.GitHubOwner}/{AppBranding.GitHubRepo}/releases/latest/download/{InstallerAssetName}";
 
     private static readonly HttpClient Http = CreateClient();
     private static readonly HttpClient DownloadHttp = CreateDownloadClient();
@@ -88,20 +95,24 @@ public sealed class UpdateService
         bool silentInstall = false,
         CancellationToken ct = default)
     {
-        if (!update.IsUpdateAvailable || string.IsNullOrWhiteSpace(update.DownloadUrl))
+        if (!update.IsUpdateAvailable)
         {
             return false;
         }
 
+        var downloadUrl = string.IsNullOrWhiteSpace(update.DownloadUrl)
+            ? LatestInstallerDownloadUrl
+            : update.DownloadUrl;
+
         if (silentInstall)
         {
-            return BeginDetachedUpdateAndShutdown(update);
+            return BeginDetachedUpdateAndShutdown(update with { DownloadUrl = downloadUrl });
         }
 
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var installerPath = await DownloadInstallerAsync(update.DownloadUrl, progress, ct)
+            var installerPath = await DownloadInstallerAsync(downloadUrl, progress, ct)
                 .ConfigureAwait(false);
             if (!LaunchInstaller(installerPath, silent: false))
             {
@@ -157,16 +168,19 @@ public sealed class UpdateService
 
     private static string WriteDetachedUpdateScript(string downloadUrl, string? restartExePath)
     {
-        var dir = Path.Combine(Path.GetTempPath(), "Beats-updates");
+        var dir = Path.Combine(Path.GetTempPath(), "MusicWidget-updates");
         Directory.CreateDirectory(dir);
         var scriptPath = Path.Combine(dir, "apply-update.ps1");
         var installerPath = Path.Combine(dir, InstallerAssetName);
         var logPath = Path.Combine(dir, "apply-update.log");
         var restartExe = restartExePath ?? string.Empty;
+        // Prefer the versioned asset URL when provided; otherwise the stable /latest/download link.
+        var resolvedUrl = string.IsNullOrWhiteSpace(downloadUrl) ? LatestInstallerDownloadUrl : downloadUrl;
 
         var script = $$"""
             $ErrorActionPreference = 'Stop'
-            $url = '{{EscapeForPowerShellSingleQuoted(downloadUrl)}}'
+            $url = '{{EscapeForPowerShellSingleQuoted(resolvedUrl)}}'
+            $fallback = '{{EscapeForPowerShellSingleQuoted(LatestInstallerDownloadUrl)}}'
             $out = '{{EscapeForPowerShellSingleQuoted(installerPath)}}'
             $log = '{{EscapeForPowerShellSingleQuoted(logPath)}}'
             $restart = '{{EscapeForPowerShellSingleQuoted(restartExe)}}'
@@ -175,11 +189,26 @@ public sealed class UpdateService
                 Add-Content -Path $log -Value ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message)
             }
 
+            function Get-Installer([string]$Source) {
+                Write-Log ("Downloading update from " + $Source)
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Invoke-WebRequest -Uri $Source -OutFile $out -UseBasicParsing -MaximumRedirection 8 -Headers @{ 'User-Agent' = 'MusicWidget-Updater' }
+            }
+
             try {
                 New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
-                Write-Log 'Downloading update...'
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -Headers @{ 'User-Agent' = 'MusicWidget-Updater' }
+                try {
+                    Get-Installer $url
+                }
+                catch {
+                    Write-Log ("Primary download failed: " + $_.Exception.Message)
+                    if ($url -ne $fallback) {
+                        Get-Installer $fallback
+                    }
+                    else {
+                        throw
+                    }
+                }
                 if (-not (Test-Path -LiteralPath $out) -or ((Get-Item -LiteralPath $out).Length -lt 1024)) {
                     throw 'Downloaded installer is missing or too small.'
                 }
@@ -246,7 +275,11 @@ public sealed class UpdateService
         var latest = NormalizeVersion(tagName);
         var asset = release.Assets?.FirstOrDefault(a =>
             string.Equals(a.Name, InstallerAssetName, StringComparison.OrdinalIgnoreCase));
-        var downloadUrl = asset?.BrowserDownloadUrl;
+        // Prefer the release asset URL; fall back to the stable /latest/download link so
+        // the Update button can always fetch the installer from GitHub Releases.
+        var downloadUrl = !string.IsNullOrWhiteSpace(asset?.BrowserDownloadUrl)
+            ? asset!.BrowserDownloadUrl
+            : LatestInstallerDownloadUrl;
         var isUpdateAvailable = IsNewerVersion(latest, CurrentVersion);
 
         return new UpdateCheckResult(latest, downloadUrl, isUpdateAvailable);
@@ -257,10 +290,43 @@ public sealed class UpdateService
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
-        var dir = Path.Combine(Path.GetTempPath(), "Beats-updates");
+        var dir = Path.Combine(Path.GetTempPath(), "MusicWidget-updates");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, InstallerAssetName);
+        var urls = new List<string>();
+        if (!string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            urls.Add(downloadUrl.Trim());
+        }
 
+        if (!urls.Contains(LatestInstallerDownloadUrl, StringComparer.OrdinalIgnoreCase))
+        {
+            urls.Add(LatestInstallerDownloadUrl);
+        }
+
+        Exception? lastError = null;
+        foreach (var url in urls)
+        {
+            try
+            {
+                return await DownloadInstallerFromUrlAsync(url, path, progress, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastError = ex;
+                CrashLog.Write(ex, "UpdateService.DownloadInstallerAsync:" + url);
+            }
+        }
+
+        throw lastError ?? new InvalidOperationException("Could not download the MusicWidget installer.");
+    }
+
+    private static async Task<string> DownloadInstallerFromUrlAsync(
+        string downloadUrl,
+        string path,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
         using var response = await DownloadHttp
             .GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct)
             .ConfigureAwait(false);
@@ -281,15 +347,25 @@ public sealed class UpdateService
             {
                 progress?.Report((double)read / total);
             }
+            else
+            {
+                progress?.Report(-1);
+            }
         }
 
+        if (read < 1024)
+        {
+            throw new InvalidOperationException("Downloaded installer is missing or too small.");
+        }
+
+        progress?.Report(1);
         return path;
     }
 
     public static bool LaunchInstaller(string installerPath, bool silent = false)
     {
         var args = silent
-            ? "/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS"
+            ? "/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART"
             : string.Empty;
 
         return Process.Start(new ProcessStartInfo
@@ -298,6 +374,77 @@ public sealed class UpdateService
             Arguments = args,
             UseShellExecute = true,
         }) is not null;
+    }
+
+    /// <summary>
+    /// Runs an already-downloaded installer silently, then relaunches MusicWidget.
+    /// </summary>
+    public bool BeginSilentInstallFromFileAndShutdown(string installerPath)
+    {
+        if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var restartExe = ResolveRestartExecutablePath() ?? string.Empty;
+            var dir = Path.Combine(Path.GetTempPath(), "MusicWidget-updates");
+            Directory.CreateDirectory(dir);
+            var scriptPath = Path.Combine(dir, "apply-local-update.ps1");
+            var logPath = Path.Combine(dir, "apply-local-update.log");
+
+            var script = $$"""
+                $ErrorActionPreference = 'Stop'
+                $out = '{{EscapeForPowerShellSingleQuoted(installerPath)}}'
+                $log = '{{EscapeForPowerShellSingleQuoted(logPath)}}'
+                $restart = '{{EscapeForPowerShellSingleQuoted(restartExe)}}'
+
+                function Write-Log([string]$Message) {
+                    Add-Content -Path $log -Value ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message)
+                }
+
+                try {
+                    Write-Log 'Launching local installer...'
+                    $proc = Start-Process -FilePath $out -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART' -PassThru -Wait
+                    if ($null -eq $proc) { throw 'Failed to start installer process.' }
+                    if ($proc.ExitCode -ne 0) { throw "Installer exited with code $($proc.ExitCode)." }
+                    Write-Log 'Update finished.'
+                    Start-Sleep -Seconds 2
+                    if ($restart -and (Test-Path -LiteralPath $restart)) {
+                        Write-Log "Relaunching $restart"
+                        Start-Process -FilePath $restart
+                    }
+                }
+                catch {
+                    Write-Log $_.Exception.Message
+                    exit 1
+                }
+                """;
+
+            File.WriteAllText(scriptPath, script);
+            var started = Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments =
+                    $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+
+            if (started is null)
+            {
+                return false;
+            }
+
+            ShutdownApplicationForUpdate();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "UpdateService.BeginSilentInstallFromFileAndShutdown");
+            return false;
+        }
     }
 
     public static void ShutdownApplicationForUpdate()

@@ -87,13 +87,19 @@ public sealed class AudioPlayer : IDisposable
         App.Settings.Current.PlaybackSpeed = 1.0;
     }
 
-    public void SetRate(float rate)
+    public void SetRate(float rate, bool snapNearNormal = false)
     {
         var clamped = Math.Clamp(rate, 0.5f, 2.0f);
-        // Snap near 1.0 so "normal" is easy to hit on the slider.
-        if (Math.Abs(clamped - 1f) < 0.03f)
+        // Snap near 1.0 only when the user finishes dragging — snapping mid-drag
+        // made the speed slider jump and fight the thumb.
+        if (snapNearNormal && Math.Abs(clamped - 1f) < 0.05f)
         {
             clamped = 1f;
+        }
+
+        if (Math.Abs(_rate - clamped) < 0.0005f)
+        {
+            return;
         }
 
         _rate = clamped;

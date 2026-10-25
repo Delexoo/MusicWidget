@@ -218,7 +218,9 @@ public sealed class ArtworkService
     private static async Task<byte[]?> TryFetchOnlineAsync(
         Track track, string? title, string? artist, CancellationToken ct)
     {
-        var query = BuildQuery(track, title, artist);
+        var cleanTitle = CleanSearchText(title);
+        var cleanArtist = CleanSearchText(artist);
+        var query = BuildQuery(track, cleanTitle, cleanArtist);
         if (string.IsNullOrWhiteSpace(query))
         {
             return null;
@@ -230,7 +232,43 @@ public sealed class ArtworkService
             return fromItunes;
         }
 
-        return await TryFetchDeezerAsync(query, title, artist, ct).ConfigureAwait(false);
+        var fromDeezer = await TryFetchDeezerAsync(query, cleanTitle, cleanArtist, ct).ConfigureAwait(false);
+        if (fromDeezer is { Length: > 0 })
+        {
+            return fromDeezer;
+        }
+
+        // Last resort: title-only search (helps when artist was parsed wrong from the file name).
+        if (!string.IsNullOrWhiteSpace(cleanTitle) && !string.Equals(cleanTitle, query, StringComparison.OrdinalIgnoreCase))
+        {
+            fromItunes = await TryFetchItunesAsync(cleanTitle, ct).ConfigureAwait(false);
+            if (fromItunes is { Length: > 0 })
+            {
+                return fromItunes;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Strips YouTube/download noise so online cover search can match.</summary>
+    private static string? CleanSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var s = value.Trim();
+        // Remove common parenthetical / bracketed suffixes from downloads.
+        s = System.Text.RegularExpressions.Regex.Replace(
+            s,
+            @"\s*[\(\[][^\)\]]*(official|audio|video|lyric|instrumental|slowed|reverb|sped|nightcore|remaster|prod\.?|ft\.?|feat\.?|music video|tiktok)[^\)\]]*[\)\]]",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        s = System.Text.RegularExpressions.Regex.Replace(s, @"\s{2,}", " ").Trim();
+        s = s.Trim(' ', '-', '_', '|', '·');
+        return string.IsNullOrWhiteSpace(s) ? value.Trim() : s;
     }
 
     private static async Task<byte[]?> TryFetchItunesAsync(string query, CancellationToken ct)
@@ -389,20 +427,47 @@ public sealed class ArtworkService
 
     private static (string? Title, string? Artist, byte[]? Cover) ReadTagsWithRetry(string filePath)
     {
-        const int attempts = 3;
+        const int attempts = 4;
         for (var attempt = 0; attempt < attempts; attempt++)
         {
             try
             {
                 using var tagFile = TagLib.File.Create(filePath);
                 var title = tagFile.Tag.Title;
-                var artist = tagFile.Tag.FirstPerformer ?? tagFile.Tag.FirstAlbumArtist;
+                var artist = tagFile.Tag.FirstPerformer
+                             ?? tagFile.Tag.FirstAlbumArtist
+                             ?? (tagFile.Tag.Performers is { Length: > 0 } p ? p[0] : null);
                 var cover = ReadBestEmbeddedCover(tagFile.Tag.Pictures);
+                // Some files only expose pictures through the first tag group.
+                if ((cover is null || cover.Length == 0) && tagFile.TagTypes != TagLib.TagTypes.None)
+                {
+                    try
+                    {
+                        cover = ReadBestEmbeddedCover(tagFile.GetTag(tagFile.TagTypes)?.Pictures);
+                    }
+                    catch
+                    {
+                        // Ignore secondary tag probe failures.
+                    }
+                }
+
                 return (title, artist, cover);
             }
             catch (IOException) when (attempt < attempts - 1)
             {
-                Thread.Sleep(80);
+                Thread.Sleep(100 * (attempt + 1));
+            }
+            catch (UnauthorizedAccessException) when (attempt < attempts - 1)
+            {
+                Thread.Sleep(100 * (attempt + 1));
+            }
+            catch (TagLib.CorruptFileException)
+            {
+                break;
+            }
+            catch (TagLib.UnsupportedFormatException)
+            {
+                break;
             }
         }
 
@@ -459,24 +524,41 @@ public sealed class ArtworkService
 
         TagLib.IPicture? bestFront = null;
         TagLib.IPicture? bestAny = null;
+        var bestAnyLen = 0;
         foreach (var pic in pictures)
         {
             var data = pic.Data?.Data;
-            if (data is null || data.Length == 0)
+            if (data is null || data.Length < 64)
             {
                 continue;
             }
 
-            if (pic.Type is TagLib.PictureType.FrontCover or TagLib.PictureType.Other)
+            // Prefer front cover; otherwise keep the largest embedded picture.
+            if (pic.Type is TagLib.PictureType.FrontCover)
             {
                 bestFront ??= pic;
             }
+            else if (pic.Type is TagLib.PictureType.Other or TagLib.PictureType.FileIcon
+                     or TagLib.PictureType.OtherFileIcon or TagLib.PictureType.Media
+                     or TagLib.PictureType.Illustration)
+            {
+                if (bestFront is null)
+                {
+                    bestFront = pic;
+                }
+            }
 
-            bestAny ??= pic;
+            if (data.Length > bestAnyLen)
+            {
+                bestAny = pic;
+                bestAnyLen = data.Length;
+            }
         }
 
         var chosen = bestFront ?? bestAny;
-        return chosen?.Data?.Data;
+        var bytes = chosen?.Data?.Data;
+        // Copy so TagLib disposing the file can't invalidate the buffer mid-decode.
+        return bytes is { Length: > 0 } ? (byte[])bytes.Clone() : null;
     }
 
     private static Task<ImageSource?> CreateFrozenBitmapOnUiAsync(byte[] bytes)
@@ -551,14 +633,25 @@ public sealed class ArtworkService
             return null;
         }
 
+        // Try a couple of decode strategies — some embedded covers fail with DecodePixelWidth.
+        return TryDecodeBytes(bytes, decodeWidth: 300)
+               ?? TryDecodeBytes(bytes, decodeWidth: null);
+    }
+
+    private static ImageSource? TryDecodeBytes(byte[] bytes, int? decodeWidth)
+    {
         try
         {
-            using var stream = new MemoryStream(bytes);
+            using var stream = new MemoryStream(bytes, writable: false);
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            bmp.DecodePixelWidth = 300;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
+            if (decodeWidth is > 0)
+            {
+                bmp.DecodePixelWidth = decodeWidth.Value;
+            }
+
             bmp.StreamSource = stream;
             bmp.EndInit();
             bmp.Freeze();
@@ -577,7 +670,7 @@ public sealed class ArtworkService
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
             bmp.UriSource = new Uri(path, UriKind.Absolute);
             bmp.DecodePixelWidth = 300;
             bmp.EndInit();
@@ -586,7 +679,22 @@ public sealed class ArtworkService
         }
         catch
         {
-            return null;
+            // Retry without downscale.
+            try
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
+                bmp.UriSource = new Uri(path, UriKind.Absolute);
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 
@@ -625,9 +733,13 @@ public sealed class ArtworkService
     {
         var c = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(10),
+            Timeout = TimeSpan.FromSeconds(12),
         };
-        c.DefaultRequestHeaders.UserAgent.ParseAdd(AppBranding.UserAgent);
+        // Browser-ish UA — some cover CDNs reject short custom agents.
+        c.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 "
+            + AppBranding.UserAgent);
+        c.DefaultRequestHeaders.Accept.ParseAdd("application/json,image/*,*/*");
         return c;
     }
 }

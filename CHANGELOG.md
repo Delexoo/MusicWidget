@@ -2,6 +2,20 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.23] - 2026-10-25
+
+### Added
+- Update button downloads the official installer from GitHub Releases with progress, then silent-installs and relaunches
+
+### Changed
+- Playlist rows use a lighter card surface so they read as playlists
+- Missing album art uses a white tile with a dark music icon
+- Library folder migrates from `Music\Beats` to `Music\MusicWidget`
+
+### Fixed
+- Album covers load more reliably from embedded tags and online lookup
+- Volume, speed, and seek sliders no longer jump or stutter while dragging
+
 ## [2.2.22] - 2026-10-25
 
 ### Changed
