@@ -127,15 +127,16 @@ public sealed class DownloadService
 
     /// <summary>
     /// Primary YouTube client stack — works on most public videos without login.
+    /// (tv_embedded is dropped by current yt-dlp and can yield empty format lists.)
     /// </summary>
     private static readonly string[] YouTubePrimaryExtraArgs =
-        ["--extractor-args", "youtube:player_client=tv_embedded,web_embedded"];
+        ["--extractor-args", "youtube:player_client=web,android,ios"];
 
     /// <summary>
     /// Alternate client stack when the primary pass is blocked or rate-limited.
     /// </summary>
     private static readonly string[] YouTubeRetryExtraArgs =
-        ["--extractor-args", "youtube:player_client=web_safari,ios"];
+        ["--extractor-args", "youtube:player_client=web_safari,tv,mweb"];
 
     /// <summary>Windows browsers tried for session-aware downloads (yt-dlp --cookies-from-browser).</summary>
     private static readonly string[] BrowserCookieSources =
@@ -460,6 +461,8 @@ public sealed class DownloadService
         }
 
         yield return new YtDlpAttempt("youtube", YouTubePrimaryExtraArgs);
+        // Default client stack (no forced player_client) — often the most reliable for audio.
+        yield return new YtDlpAttempt("youtube default clients", Array.Empty<string>());
         yield return new YtDlpAttempt("youtube alternate client", YouTubeRetryExtraArgs);
         yield return new YtDlpAttempt(
             "youtube android_vr",
@@ -1024,11 +1027,11 @@ public sealed class DownloadService
             WorkingDirectory = destFolder,
         };
         // Users can have a global yt-dlp config that forces a specific format (-f / --format),
-        // which can break extraction on some videos. We always want a predictable "best audio"
-        // behavior inside the app.
+        // which can break extraction on some videos. Prefer audio, but always fall back to
+        // any downloadable stream (YouTube client changes often drop pure-audio IDs).
         psi.ArgumentList.Add("--ignore-config");
         psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("bestaudio/best");
+        psi.ArgumentList.Add("bestaudio/best/bestaudio*/best*");
         psi.ArgumentList.Add("-x");
         psi.ArgumentList.Add("--audio-format");
         psi.ArgumentList.Add("mp3");
@@ -1168,6 +1171,12 @@ public sealed class DownloadService
         psi.ArgumentList.Add("128k");
         psi.ArgumentList.Add("--threads");
         psi.ArgumentList.Add("4");
+        // spotDL defaults can request "bestaudio" alone; YouTube often only exposes
+        // combined streams for some clients → "Requested format is not available".
+        // Force our tools yt-dlp + a permissive format (overrides spotDL's brittle selector).
+        psi.ArgumentList.Add("--yt-dlp-args");
+        psi.ArgumentList.Add(
+            $"-f bestaudio/best/bestaudio*/best* --ignore-config --extractor-retries 3 --ffmpeg-location \"{_tools.FfmpegPath}\"");
         AppendSpotDlCookiesArgs(psi);
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
@@ -1359,6 +1368,9 @@ public sealed class DownloadService
             || error.Contains("PO Token", StringComparison.OrdinalIgnoreCase)
             || error.Contains("HTTP Error 403", StringComparison.OrdinalIgnoreCase)
             || error.Contains("HTTP Error 429", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Requested format is not available", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("format is not available", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Only images are available", StringComparison.OrdinalIgnoreCase)
             || (error.Contains("403", StringComparison.OrdinalIgnoreCase)
                 && error.Contains("youtube", StringComparison.OrdinalIgnoreCase));
     }

@@ -19,7 +19,9 @@ public sealed class ToolBootstrapper
 
     // spotDL v4 — Spotify tracks / albums / playlists with metadata (uses yt-dlp + ffmpeg).
     private const string SpotDlUrl =
-        "https://github.com/spotDL/spotify-downloader/releases/download/v4.5.0/spotdl-4.5.0-win32.exe";
+        "https://github.com/spotDL/spotify-downloader/releases/download/v4.5.2/spotdl-4.5.2-win32.exe";
+    private const string SpotDlVersionMarkerFile = ".spotdl-version";
+    private const string SpotDlVersionMarkerValue = "4.5.2";
 
     // gyan.dev's static essentials build is widely used and stable.
     private const string FfmpegZipUrl =
@@ -129,6 +131,7 @@ public sealed class ToolBootstrapper
         CancellationToken ct = default)
     {
         await EnsureToolsAsync(progress, ct);
+        TryMigrateSpotDlVersion(progress);
 
         if (IsSpotDlReady)
         {
@@ -138,6 +141,7 @@ public sealed class ToolBootstrapper
         await _gate.WaitAsync(ct);
         try
         {
+            TryMigrateSpotDlVersion(progress);
             if (IsSpotDlReady)
             {
                 return;
@@ -148,15 +152,61 @@ public sealed class ToolBootstrapper
             http.Timeout = TimeSpan.FromMinutes(10);
 
             progress?.Report(new DownloadProgressUpdate(2,
-                "Downloading spotDL for Spotify links (~42MB, one-time)..."));
+                "Downloading spotDL for Spotify links (~45MB, one-time)..."));
             await DownloadFileAsync(http, SpotDlUrl, SpotDlPath, progress,
                 "Downloading spotDL", 2, 90, ct);
+            WriteSpotDlVersionMarker();
 
             await TryBootstrapDenoAsync(progress, ct);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Replaces older bundled spotDL builds that used a brittle yt-dlp format
+    /// selector ("bestaudio" with no fallback → "Requested format is not available").
+    /// </summary>
+    private void TryMigrateSpotDlVersion(IProgress<DownloadProgressUpdate>? progress)
+    {
+        try
+        {
+            var marker = Path.Combine(_toolsDir, SpotDlVersionMarkerFile);
+            var current = File.Exists(marker) ? File.ReadAllText(marker).Trim() : null;
+            if (string.Equals(current, SpotDlVersionMarkerValue, StringComparison.Ordinal)
+                && File.Exists(SpotDlPath))
+            {
+                return;
+            }
+
+            if (File.Exists(SpotDlPath))
+            {
+                progress?.Report(new DownloadProgressUpdate(1,
+                    "Updating spotDL (Spotify download fixes)..."));
+                File.Delete(SpotDlPath);
+            }
+
+            try { File.Delete(marker); } catch { /* best-effort */ }
+        }
+        catch
+        {
+            // Locked binary — keep existing; next launch may refresh.
+        }
+    }
+
+    private void WriteSpotDlVersionMarker()
+    {
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(_toolsDir, SpotDlVersionMarkerFile),
+                SpotDlVersionMarkerValue + Environment.NewLine);
+        }
+        catch
+        {
+            // Best-effort; migration may run again next launch.
         }
     }
 
