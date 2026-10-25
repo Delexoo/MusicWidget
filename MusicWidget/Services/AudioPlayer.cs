@@ -28,11 +28,13 @@ public sealed class AudioPlayer : IDisposable
     private EventHandler<EventArgs>? _onPlayingHandler;
     private EventHandler<EventArgs>? _onPausedHandler;
     private Equalizer? _equalizer;
-    private bool _bassBoost;
-    private bool _reverb;
+    private int _bassBoostLevel; // 0–3
+    private bool _slowedReverb;
     private bool _vocalRemover;
+    private float _rateBeforeSlowedReverb = 1f;
     private string _engineFilterKey = "";
     private int _volume = 80;
+    private const float SlowedReverbRate = 0.80f;
     private static readonly Random _random = new();
 
     public event EventHandler? PlayStateChanged;
@@ -48,8 +50,8 @@ public sealed class AudioPlayer : IDisposable
     public Track? CurrentTrack => _currentTrack;
     public bool LoopCurrent => _loopCurrent;
     public bool Shuffle => _shuffle;
-    public bool BassBoost => _bassBoost;
-    public bool Reverb => _reverb;
+    public int BassBoostLevel => _bassBoostLevel;
+    public bool SlowedReverb => _slowedReverb;
     public bool VocalRemover => _vocalRemover;
 
     public int Volume
@@ -93,28 +95,37 @@ public sealed class AudioPlayer : IDisposable
             Core.Initialize();
         }
 
-        _bassBoost = App.Settings.Current.BassBoost;
-        _reverb = App.Settings.Current.Reverb;
+        _bassBoostLevel = Math.Clamp(App.Settings.Current.BassBoostLevel, 0, 3);
+        _slowedReverb = App.Settings.Current.SlowedReverb;
         _vocalRemover = App.Settings.Current.VocalRemover;
         _volume = Math.Clamp(App.Settings.Current.Volume, 0, 100);
 
-        CreateEngine(BuildFilterKey(_vocalRemover, _reverb), wireEvents: true);
+        CreateEngine(BuildFilterKey(_vocalRemover, _slowedReverb), wireEvents: true);
 
         _loopCurrent = App.Settings.Current.LoopCurrent;
         _shuffle = App.Settings.Current.Shuffle;
-        // Speed is session-only — always launch at normal (1.0x).
-        SetRate(1f);
-        App.Settings.Current.PlaybackSpeed = 1.0;
+        // Speed is session-only — always launch at normal (1.0x), unless Slowed & Reverb is on.
+        if (_slowedReverb)
+        {
+            _rateBeforeSlowedReverb = 1f;
+            SetRate(SlowedReverbRate);
+        }
+        else
+        {
+            SetRate(1f);
+        }
+
+        App.Settings.Current.PlaybackSpeed = _rate;
         ApplyEqualizer();
     }
 
-    public void SetBassBoost(bool enabled)
+    /// <summary>Cycles bass boost: Off → 1 → 2 → 3 → Off.</summary>
+    public void CycleBassBoostLevel()
     {
-        if (_bassBoost == enabled) return;
         lock (_playbackLock)
         {
-            _bassBoost = enabled;
-            App.Settings.Current.BassBoost = enabled;
+            _bassBoostLevel = (_bassBoostLevel + 1) % 4;
+            App.Settings.Current.BassBoostLevel = _bassBoostLevel;
             App.Settings.ScheduleSave();
             ApplyEqualizer();
         }
@@ -122,16 +133,48 @@ public sealed class AudioPlayer : IDisposable
         EffectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SetReverb(bool enabled)
+    public void SetBassBoostLevel(int level)
     {
-        if (_reverb == enabled) return;
+        level = Math.Clamp(level, 0, 3);
+        if (_bassBoostLevel == level) return;
         lock (_playbackLock)
         {
-            _reverb = enabled;
-            App.Settings.Current.Reverb = enabled;
+            _bassBoostLevel = level;
+            App.Settings.Current.BassBoostLevel = level;
             App.Settings.ScheduleSave();
-            EnsureEngineForEffectsUnlocked();
             ApplyEqualizer();
+        }
+
+        EffectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetSlowedReverb(bool enabled)
+    {
+        if (_slowedReverb == enabled) return;
+        lock (_playbackLock)
+        {
+            if (enabled)
+            {
+                _rateBeforeSlowedReverb = _rate <= 0.01f ? 1f : _rate;
+                _slowedReverb = true;
+                App.Settings.Current.SlowedReverb = true;
+                App.Settings.ScheduleSave();
+                EnsureEngineForEffectsUnlocked();
+                SetRate(SlowedReverbRate);
+                App.Settings.Current.PlaybackSpeed = SlowedReverbRate;
+                ApplyEqualizer();
+            }
+            else
+            {
+                _slowedReverb = false;
+                App.Settings.Current.SlowedReverb = false;
+                App.Settings.ScheduleSave();
+                EnsureEngineForEffectsUnlocked();
+                var restore = Math.Clamp(_rateBeforeSlowedReverb, 0.5f, 2.0f);
+                SetRate(restore);
+                App.Settings.Current.PlaybackSpeed = restore;
+                ApplyEqualizer();
+            }
         }
 
         EffectsChanged?.Invoke(this, EventArgs.Empty);
@@ -152,17 +195,17 @@ public sealed class AudioPlayer : IDisposable
         EffectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private static string BuildFilterKey(bool vocalRemover, bool reverb)
+    private static string BuildFilterKey(bool vocalRemover, bool slowedReverb)
     {
-        if (vocalRemover && reverb) return "karaoke,spatializer";
+        if (vocalRemover && slowedReverb) return "karaoke,spatializer";
         if (vocalRemover) return "karaoke";
-        if (reverb) return "spatializer";
+        if (slowedReverb) return "spatializer";
         return "";
     }
 
     private void EnsureEngineForEffectsUnlocked()
     {
-        var key = BuildFilterKey(_vocalRemover, _reverb);
+        var key = BuildFilterKey(_vocalRemover, _slowedReverb);
         if (string.Equals(key, _engineFilterKey, StringComparison.Ordinal))
         {
             return;
@@ -192,14 +235,14 @@ public sealed class AudioPlayer : IDisposable
             args.Add("--audio-filter=" + filterKey);
         }
 
-        // Spatializer tuned as a hall-ish reverb (wet/dry blend).
+        // Wet hall for Slowed & Reverb (and when stacked with vocal remover).
         if (filterKey.Contains("spatializer", StringComparison.Ordinal))
         {
-            args.Add("--spatializer-roomsize=0.92");
+            args.Add("--spatializer-roomsize=1.0");
             args.Add("--spatializer-width=1.0");
-            args.Add("--spatializer-wet=0.48");
-            args.Add("--spatializer-dry=0.72");
-            args.Add("--spatializer-damp=0.38");
+            args.Add("--spatializer-wet=0.72");
+            args.Add("--spatializer-dry=0.40");
+            args.Add("--spatializer-damp=0.22");
         }
 
         _libVlc = args.Count == 0 ? new LibVLC() : new LibVLC(args.ToArray());
@@ -272,9 +315,8 @@ public sealed class AudioPlayer : IDisposable
     }
 
     /// <summary>
-    /// Builds the live equalizer curve. Bass boost hits low bands; vocal remover
-    /// scoops the speech/singing formant range on top of VLC's karaoke filter
-    /// (L−R center cancel — same idea as VLC karaoke.c / voiceout).
+    /// Builds the live equalizer curve. Bass has 3 intensity levels; vocal remover
+    /// deeply scoops formants on top of VLC karaoke (L−R center cancel).
     /// </summary>
     private void ApplyEqualizer()
     {
@@ -288,7 +330,7 @@ public sealed class AudioPlayer : IDisposable
             var eq = new Equalizer();
             var bandCount = (int)eq.BandCount;
 
-            // Start flat.
+            // Start flat. Typical 10-band: 60, 170, 310, 600, 1k, 3k, 6k, 12k, 14k, 16k
             for (uint i = 0; i < bandCount; i++)
             {
                 eq.SetAmp(0f, i);
@@ -296,37 +338,54 @@ public sealed class AudioPlayer : IDisposable
 
             eq.SetPreamp(0f);
 
-            if (_bassBoost)
+            if (_bassBoostLevel > 0)
             {
-                // Typical 10-band layout: 60, 170, 310, 600, 1k, 3k, 6k, 12k, 14k, 16k
-                if (bandCount > 0) eq.SetAmp(14f, 0);
-                if (bandCount > 1) eq.SetAmp(11f, 1);
-                if (bandCount > 2) eq.SetAmp(7f, 2);
-                if (bandCount > 3) eq.SetAmp(3f, 3);
-                eq.SetPreamp(-3.5f);
+                // Level 1 mild → 2 strong → 3 extreme (near EQ max on sub/bass).
+                var (b0, b1, b2, b3, pre) = _bassBoostLevel switch
+                {
+                    1 => (8f, 6f, 3f, 1f, -2f),
+                    2 => (14f, 11f, 7f, 3f, -3.5f),
+                    _ => (20f, 18f, 12f, 6f, -5.5f), // level 3 extreme
+                };
+                if (bandCount > 0) eq.SetAmp(b0, 0);
+                if (bandCount > 1) eq.SetAmp(b1, 1);
+                if (bandCount > 2) eq.SetAmp(b2, 2);
+                if (bandCount > 3) eq.SetAmp(b3, 3);
+                eq.SetPreamp(pre);
             }
 
             if (_vocalRemover)
             {
-                // Aggressive mid scoop where vocals live, after karaoke center-cancel.
-                if (bandCount > 2) eq.SetAmp(Math.Min(eq.Amp(2), -4f), 2);
-                if (bandCount > 3) eq.SetAmp(-10f, 3);
-                if (bandCount > 4) eq.SetAmp(-16f, 4);
-                if (bandCount > 5) eq.SetAmp(-14f, 5);
-                if (bandCount > 6) eq.SetAmp(-8f, 6);
-                if (bandCount > 7) eq.SetAmp(-3f, 7);
-                // Keep some low end so the instrumental still has body.
-                if (!_bassBoost && bandCount > 0) eq.SetAmp(2f, 0);
-                if (!_bassBoost && bandCount > 1) eq.SetAmp(1.5f, 1);
-                eq.SetPreamp(eq.Preamp - 1.5f);
+                // Hard mid scoop after karaoke center-cancel — vocals sit ~250Hz–4kHz.
+                // Use absolute cuts (overwrite bass mid gains in the vocal range).
+                if (bandCount > 1) eq.SetAmp(Math.Min(eq.Amp(1), -6f), 1);   // 170
+                if (bandCount > 2) eq.SetAmp(-14f, 2);                        // 310
+                if (bandCount > 3) eq.SetAmp(-20f, 3);                        // 600
+                if (bandCount > 4) eq.SetAmp(-20f, 4);                        // 1k
+                if (bandCount > 5) eq.SetAmp(-20f, 5);                        // 3k
+                if (bandCount > 6) eq.SetAmp(-16f, 6);                        // 6k
+                if (bandCount > 7) eq.SetAmp(-10f, 7);                        // 12k
+                if (bandCount > 8) eq.SetAmp(-6f, 8);
+                // Preserve / slightly lift sub so the track still has body.
+                if (_bassBoostLevel == 0)
+                {
+                    if (bandCount > 0) eq.SetAmp(4f, 0);
+                }
+                else if (bandCount > 0)
+                {
+                    eq.SetAmp(Math.Max(eq.Amp(0), 6f), 0);
+                }
+
+                eq.SetPreamp(eq.Preamp - 2.5f);
             }
 
-            if (_reverb && !_vocalRemover)
+            if (_slowedReverb)
             {
-                // Mild high-shelf air so spatializer wet signal feels roomier.
-                if (bandCount > 6) eq.SetAmp(Math.Max(eq.Amp(6), 2f), 6);
-                if (bandCount > 7) eq.SetAmp(Math.Max(eq.Amp(7), 3f), 7);
-                if (bandCount > 8) eq.SetAmp(Math.Max(eq.Amp(8), 2.5f), 8);
+                // Extra air/tail so the wet spatializer reads as classic slowed+reverb.
+                if (bandCount > 6) eq.SetAmp(Math.Max(eq.Amp(6), 3f), 6);
+                if (bandCount > 7) eq.SetAmp(Math.Max(eq.Amp(7), 4f), 7);
+                if (bandCount > 8) eq.SetAmp(Math.Max(eq.Amp(8), 3.5f), 8);
+                if (bandCount > 9) eq.SetAmp(Math.Max(eq.Amp(9), 2f), 9);
             }
 
             _player.SetEqualizer(eq);

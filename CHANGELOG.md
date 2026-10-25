@@ -2,6 +2,13 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.26] - 2026-10-25
+
+### Changed
+- Reverb effect is now **Slowed & reverb** (0.8x + hall reverb)
+- Bass boost is a 3-level cycle (Off → 1 → 2 → 3 extreme)
+- Vocal remover uses a deeper mid scoop on top of karaoke center-cancel
+
 ## [2.2.25] - 2026-10-25
 
 ### Changed
