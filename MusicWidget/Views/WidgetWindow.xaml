@@ -140,7 +140,7 @@
               <Grid Width="44" Height="44">
                 <Path x:Name="AlbumArtPlaceholderIcon"
                       Data="{StaticResource Icon.Music}"
-                      Fill="#FF0F172A"
+                      Fill="Black"
                       Stretch="Uniform"
                       Width="18" Height="18"
                       HorizontalAlignment="Center"

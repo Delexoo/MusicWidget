@@ -2,6 +2,19 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.24] - 2026-10-25
+
+### Added
+- Effects row above the now-playing bar: Bass boost, Reverb, and Vocal remover toggles
+
+### Changed
+- Missing covers use a white tile with a black music note
+- Artwork cache stores the correct image extension and reloads via stream decode
+
+### Fixed
+- Album covers from embedded tags and online lookup now appear in playlist rows
+- Parallel cover loading so expanded playlists fill artwork faster
+
 ## [2.2.23] - 2026-10-25
 
 ### Added

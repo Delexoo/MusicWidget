@@ -51,4 +51,17 @@ public sealed class AppSettings
 
     /// <summary>Song row scale in the dashboard tracks list (Ctrl+scroll). 1.0 = default.</summary>
     public double TracksListZoom { get; set; } = 1.0;
+
+    /// <summary>Boost low frequencies during playback.</summary>
+    public bool BassBoost { get; set; }
+
+    /// <summary>Spatial reverb (LibVLC spatializer) during playback.</summary>
+    public bool Reverb { get; set; }
+
+    /// <summary>
+    /// Real-time vocal remover (center-channel cancel + mid scoop).
+    /// Inspired by VLC karaoke / voiceout-style phase cancellation used by
+    /// online tools such as vocalremover.org for the non-AI path.
+    /// </summary>
+    public bool VocalRemover { get; set; }
 }

@@ -41,10 +41,9 @@ public sealed class ArtworkService
             return Task.FromResult<ImageSource?>(cached);
         }
 
-        if (_knownMisses.ContainsKey(key))
-        {
-            return Task.FromResult<ImageSource?>(null);
-        }
+        // Known misses are soft — always allow a fresh attempt so path moves /
+        // flaky online lookups can recover within the same session.
+        _knownMisses.TryRemove(key, out _);
 
         return _inflight.GetOrAdd(key, _ => LoadAsync(track, ct));
     }
@@ -61,8 +60,8 @@ public sealed class ArtworkService
             return true;
         }
 
-        var cachePath = Path.Combine(_cacheDir, key + ".png");
-        if (!File.Exists(cachePath))
+        var cachePath = FindCachePath(key);
+        if (cachePath is null)
         {
             return false;
         }
@@ -70,6 +69,7 @@ public sealed class ArtworkService
         var fromDisk = LoadBitmapOnUi(cachePath);
         if (fromDisk is null)
         {
+            try { File.Delete(cachePath); } catch { /* best-effort */ }
             return false;
         }
 
@@ -78,30 +78,26 @@ public sealed class ArtworkService
         return true;
     }
 
+    /// <summary>Drop soft misses so the next expand re-queries tags / online.</summary>
+    public void ClearMissCache() => _knownMisses.Clear();
+
     private async Task<ImageSource?> LoadAsync(Track track, CancellationToken ct)
     {
         await _loadConcurrency.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             var key = NormalizeKey(track.FilePath);
-            var cachePath = Path.Combine(_cacheDir, key + ".png");
-            if (File.Exists(cachePath))
+            var existingCache = FindCachePath(key);
+            if (existingCache is not null)
             {
-                var fromDisk = await LoadBitmapOnUiAsync(cachePath).ConfigureAwait(false);
+                var fromDisk = await LoadBitmapOnUiAsync(existingCache).ConfigureAwait(false);
                 if (fromDisk is not null)
                 {
                     RememberInMemCache(key, fromDisk);
                     return fromDisk;
                 }
 
-                try
-                {
-                    File.Delete(cachePath);
-                }
-                catch
-                {
-                    // Stale cache cleanup is best-effort.
-                }
+                try { File.Delete(existingCache); } catch { /* stale cache */ }
             }
 
             string? title = null;
@@ -112,9 +108,9 @@ public sealed class ArtworkService
             {
                 (title, artist, embedded) = ReadTagsWithRetry(track.FilePath);
             }
-            catch
+            catch (Exception ex)
             {
-                // Reading tags is best-effort; some files don't have any.
+                CrashLog.Write(ex, "ArtworkService.ReadTags:" + track.FilePath);
             }
 
             if (embedded is null || embedded.Length == 0)
@@ -134,9 +130,28 @@ public sealed class ArtworkService
                     title = track.FriendlyDisplayName;
                 }
             }
-            else if (!string.IsNullOrWhiteSpace(title))
+            else
             {
-                title = TrackNameFormatter.Beautify(title);
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    title = TrackNameFormatter.Beautify(title);
+                }
+
+                if (!string.IsNullOrWhiteSpace(artist))
+                {
+                    artist = TrackNameFormatter.Beautify(artist);
+                }
+            }
+
+            // Prefer filename artist/title for online lookup when tags are "Artist - Title" dumped into Title only.
+            if (string.IsNullOrWhiteSpace(artist)
+                && TrackNameFormatter.TryParseArtistTitle(track.DisplayName, out var fileArtist, out var fileTitle))
+            {
+                artist = fileArtist;
+                if (string.IsNullOrWhiteSpace(title) || title.Contains(fileArtist, StringComparison.OrdinalIgnoreCase))
+                {
+                    title = fileTitle;
+                }
             }
 
             UpdateTrackTagsOnUi(track, title, artist);
@@ -156,7 +171,15 @@ public sealed class ArtworkService
             var bmp = await CreateFrozenBitmapOnUiAsync(bytes).ConfigureAwait(false);
             if (bmp is null)
             {
-                _knownMisses[key] = 1;
+                // Embedded/online bytes can still decode via the alternate path.
+                bmp = await CreateFrozenBitmapOnUiAsync(NormalizeImageBytes(bytes)).ConfigureAwait(false);
+            }
+
+            if (bmp is null)
+            {
+                CrashLog.Write(
+                    new InvalidOperationException("Failed to decode artwork bytes (" + bytes.Length + ")."),
+                    "ArtworkService.Decode:" + track.FilePath);
                 return null;
             }
 
@@ -164,6 +187,7 @@ public sealed class ArtworkService
 
             try
             {
+                var cachePath = Path.Combine(_cacheDir, key + DetectImageExtension(bytes));
                 await File.WriteAllBytesAsync(cachePath, bytes, ct).ConfigureAwait(false);
             }
             catch
@@ -174,8 +198,9 @@ public sealed class ArtworkService
             RememberInMemCache(key, bmp);
             return bmp;
         }
-        catch
+        catch (Exception ex)
         {
+            CrashLog.Write(ex, "ArtworkService.LoadAsync");
             return null;
         }
         finally
@@ -183,6 +208,82 @@ public sealed class ArtworkService
             _loadConcurrency.Release();
             _inflight.TryRemove(NormalizeKey(track.FilePath), out _);
         }
+    }
+
+    private string? FindCachePath(string key)
+    {
+        foreach (var ext in new[] { ".jpg", ".jpeg", ".png", ".webp", ".img" })
+        {
+            var path = Path.Combine(_cacheDir, key + ext);
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static string DetectImageExtension(byte[] bytes)
+    {
+        if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            return ".jpg";
+        }
+
+        if (bytes.Length >= 8
+            && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+        {
+            return ".png";
+        }
+
+        if (bytes.Length >= 12
+            && bytes[0] == (byte)'R' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F' && bytes[3] == (byte)'F'
+            && bytes[8] == (byte)'W' && bytes[9] == (byte)'E' && bytes[10] == (byte)'B' && bytes[11] == (byte)'P')
+        {
+            return ".webp";
+        }
+
+        return ".img";
+    }
+
+    /// <summary>Some TagLib pictures include an ID3 frame header — strip to SOI/JPEG or PNG magic.</summary>
+    private static byte[] NormalizeImageBytes(byte[] bytes)
+    {
+        if (bytes.Length < 4)
+        {
+            return bytes;
+        }
+
+        // Already a normal image.
+        if ((bytes[0] == 0xFF && bytes[1] == 0xD8) || (bytes[0] == 0x89 && bytes[1] == 0x50))
+        {
+            return bytes;
+        }
+
+        // Scan for JPEG SOI.
+        for (var i = 0; i < bytes.Length - 2; i++)
+        {
+            if (bytes[i] == 0xFF && bytes[i + 1] == 0xD8 && bytes[i + 2] == 0xFF)
+            {
+                var slice = new byte[bytes.Length - i];
+                Buffer.BlockCopy(bytes, i, slice, 0, slice.Length);
+                return slice;
+            }
+        }
+
+        // Scan for PNG signature.
+        for (var i = 0; i < bytes.Length - 4; i++)
+        {
+            if (bytes[i] == 0x89 && bytes[i + 1] == 0x50 && bytes[i + 2] == 0x4E && bytes[i + 3] == 0x47)
+            {
+                var slice = new byte[bytes.Length - i];
+                Buffer.BlockCopy(bytes, i, slice, 0, slice.Length);
+                return slice;
+            }
+        }
+
+        return bytes;
     }
 
     private static void UpdateTrackTagsOnUi(Track track, string? title, string? artist)
@@ -633,9 +734,49 @@ public sealed class ArtworkService
             return null;
         }
 
-        // Try a couple of decode strategies — some embedded covers fail with DecodePixelWidth.
-        return TryDecodeBytes(bytes, decodeWidth: 300)
-               ?? TryDecodeBytes(bytes, decodeWidth: null);
+        var normalized = NormalizeImageBytes(bytes);
+        // Prefer BitmapDecoder (more tolerant of TagLib payloads) then BitmapImage.
+        return TryDecodeWithDecoder(normalized, decodeWidth: 300)
+               ?? TryDecodeWithDecoder(normalized, decodeWidth: null)
+               ?? TryDecodeBytes(normalized, decodeWidth: 300)
+               ?? TryDecodeBytes(normalized, decodeWidth: null);
+    }
+
+    private static ImageSource? TryDecodeWithDecoder(byte[] bytes, int? decodeWidth)
+    {
+        try
+        {
+            using var stream = new MemoryStream(bytes, writable: false);
+            var decoder = BitmapDecoder.Create(
+                stream,
+                BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.PreservePixelFormat,
+                BitmapCacheOption.OnLoad);
+            if (decoder.Frames.Count == 0)
+            {
+                return null;
+            }
+
+            var frame = decoder.Frames[0];
+            if (decodeWidth is > 0 && frame.PixelWidth > decodeWidth.Value)
+            {
+                var scaled = new TransformedBitmap(
+                    frame,
+                    new ScaleTransform(decodeWidth.Value / (double)frame.PixelWidth, decodeWidth.Value / (double)frame.PixelWidth));
+                scaled.Freeze();
+                return scaled;
+            }
+
+            if (frame.CanFreeze && !frame.IsFrozen)
+            {
+                frame.Freeze();
+            }
+
+            return frame;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static ImageSource? TryDecodeBytes(byte[] bytes, int? decodeWidth)
@@ -667,34 +808,13 @@ public sealed class ArtworkService
     {
         try
         {
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
-            bmp.UriSource = new Uri(path, UriKind.Absolute);
-            bmp.DecodePixelWidth = 300;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
+            // Load via stream so a .png name with JPEG bytes still decodes.
+            var bytes = File.ReadAllBytes(path);
+            return LoadBitmapFromBytes(bytes);
         }
         catch
         {
-            // Retry without downscale.
-            try
-            {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
-                bmp.UriSource = new Uri(path, UriKind.Absolute);
-                bmp.EndInit();
-                bmp.Freeze();
-                return bmp;
-            }
-            catch
-            {
-                return null;
-            }
+            return null;
         }
     }
 

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -79,6 +80,7 @@ public partial class SettingsPanel : UserControl
     private bool _adjustingVolume;
     private bool _adjustingSpeed;
     private bool _updateInstallInFlight;
+    private bool _suppressEffectToggle;
     private int _lastNonZeroVolume = 80;
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _backgroundDownloadHideTimer;
@@ -121,6 +123,7 @@ public partial class SettingsPanel : UserControl
         App.Player.CurrentTrackChanged += OnPlayerStateChanged;
         App.Player.ShuffleChanged += OnShuffleChanged;
         App.Player.LoopCurrentChanged += OnLoopChanged;
+        App.Player.EffectsChanged += OnEffectsChanged;
         App.LikedSongs.Changed += OnLikedSongsChanged;
         App.SavedSongs.Changed += OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged += OnBackgroundDownloadProgress;
@@ -159,6 +162,7 @@ public partial class SettingsPanel : UserControl
         }
         _refreshAllDebounceTimer = null;
         App.Player.LoopCurrentChanged -= OnLoopChanged;
+        App.Player.EffectsChanged -= OnEffectsChanged;
         App.LikedSongs.Changed -= OnLikedSongsChanged;
         App.SavedSongs.Changed -= OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged -= OnBackgroundDownloadProgress;
@@ -301,6 +305,48 @@ public partial class SettingsPanel : UserControl
         UpdateFooterSaveIcon();
         UpdateFooterProgress();
         UpdateNowPlayingFooter();
+        SyncEffectToggles();
+    }
+
+    private void OnEffectsChanged(object? sender, EventArgs e) =>
+        UiDispatcher.BeginInvokeSafe(SyncEffectToggles);
+
+    private void SyncEffectToggles()
+    {
+        if (EffectBassBoostButton is null || EffectReverbButton is null || EffectVocalRemoverButton is null)
+        {
+            return;
+        }
+
+        _suppressEffectToggle = true;
+        try
+        {
+            EffectBassBoostButton.IsChecked = App.Player.BassBoost;
+            EffectReverbButton.IsChecked = App.Player.Reverb;
+            EffectVocalRemoverButton.IsChecked = App.Player.VocalRemover;
+        }
+        finally
+        {
+            _suppressEffectToggle = false;
+        }
+    }
+
+    private void EffectBassBoost_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEffectToggle || !_isLoaded) return;
+        App.Player.SetBassBoost(EffectBassBoostButton.IsChecked == true);
+    }
+
+    private void EffectReverb_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEffectToggle || !_isLoaded) return;
+        App.Player.SetReverb(EffectReverbButton.IsChecked == true);
+    }
+
+    private void EffectVocalRemover_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEffectToggle || !_isLoaded) return;
+        App.Player.SetVocalRemover(EffectVocalRemoverButton.IsChecked == true);
     }
 
     private void UpdateNowPlayingFooter()
@@ -1229,45 +1275,63 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
-        UiDispatcher.BeginInvokeSafe(() => HydrateTracksArtwork(tracks), DispatcherPriority.Normal);
+        App.Artwork.ClearMissCache();
+        UiDispatcher.BeginInvokeSafe(() => HydrateTracksArtwork(tracks), DispatcherPriority.Loaded);
 
         _ = Task.Run(async () =>
         {
-            const int maxTracks = 200;
-            var loaded = 0;
+            const int maxTracks = 400;
+            var attempted = 0;
+            // Load a few in parallel so the list fills covers quickly.
+            var gate = new SemaphoreSlim(4, 4);
+            var tasks = new List<Task>();
             foreach (var track in tracks)
             {
-                if (track.ArtworkSource is not null)
-                {
-                    continue;
-                }
-
-                if (loaded++ >= maxTracks)
+                if (attempted++ >= maxTracks)
                 {
                     break;
                 }
 
-                try
+                var capture = track;
+                tasks.Add(Task.Run(async () =>
                 {
-                    var art = await App.Artwork.GetArtworkAsync(track).ConfigureAwait(false);
-                    if (art is null)
+                    await gate.WaitAsync().ConfigureAwait(false);
+                    try
                     {
-                        continue;
-                    }
+                        if (capture.ArtworkSource is not null)
+                        {
+                            return;
+                        }
 
-                    var capture = track;
-                    UiDispatcher.BeginInvokeSafe(() =>
-                    {
-                        if (capture.ArtworkSource is null)
+                        var art = await App.Artwork.GetArtworkAsync(capture).ConfigureAwait(false);
+                        if (art is null)
+                        {
+                            return;
+                        }
+
+                        UiDispatcher.BeginInvokeSafe(() =>
                         {
                             capture.ArtworkSource = art;
-                        }
-                    }, DispatcherPriority.Normal);
-                }
-                catch
-                {
-                    // Best-effort artwork.
-                }
+                        }, DispatcherPriority.Background);
+                    }
+                    catch (Exception ex)
+                    {
+                        CrashLog.Write(ex, "SettingsPanel.QueueArtworkLoad");
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
+                }));
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Individual failures already logged.
             }
         });
     }

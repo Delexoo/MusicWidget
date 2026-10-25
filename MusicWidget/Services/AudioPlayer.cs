@@ -10,8 +10,8 @@ namespace MusicWidget.Services;
 
 public sealed class AudioPlayer : IDisposable
 {
-    private readonly LibVLC _libVlc;
-    private readonly MediaPlayer _player;
+    private LibVLC _libVlc = null!;
+    private MediaPlayer _player = null!;
     private readonly object _playbackLock = new();
 
     private List<Track> _queue = new();
@@ -27,6 +27,12 @@ public sealed class AudioPlayer : IDisposable
     private long _lastPositionNotifyTicks;
     private EventHandler<EventArgs>? _onPlayingHandler;
     private EventHandler<EventArgs>? _onPausedHandler;
+    private Equalizer? _equalizer;
+    private bool _bassBoost;
+    private bool _reverb;
+    private bool _vocalRemover;
+    private string _engineFilterKey = "";
+    private int _volume = 80;
     private static readonly Random _random = new();
 
     public event EventHandler? PlayStateChanged;
@@ -34,6 +40,7 @@ public sealed class AudioPlayer : IDisposable
     public event EventHandler? PositionChanged;
     public event EventHandler? LoopCurrentChanged;
     public event EventHandler? ShuffleChanged;
+    public event EventHandler? EffectsChanged;
 
     public bool IsPlaying => _player.IsPlaying;
     public long PositionMs => Math.Max(0, _player.Time);
@@ -41,11 +48,28 @@ public sealed class AudioPlayer : IDisposable
     public Track? CurrentTrack => _currentTrack;
     public bool LoopCurrent => _loopCurrent;
     public bool Shuffle => _shuffle;
+    public bool BassBoost => _bassBoost;
+    public bool Reverb => _reverb;
+    public bool VocalRemover => _vocalRemover;
 
     public int Volume
     {
-        get => _player.Volume;
-        set => _player.Volume = Math.Clamp(value, 0, 100);
+        get => _volume;
+        set
+        {
+            _volume = Math.Clamp(value, 0, 100);
+            try
+            {
+                if (!_disposed)
+                {
+                    _player.Volume = _volume;
+                }
+            }
+            catch
+            {
+                /* volume apply is best-effort */
+            }
+        }
     }
 
     /// <summary>Playback speed multiplier (0.5–2.0). 1.0 is normal.</summary>
@@ -69,22 +93,250 @@ public sealed class AudioPlayer : IDisposable
             Core.Initialize();
         }
 
-        _libVlc = new LibVLC();
+        _bassBoost = App.Settings.Current.BassBoost;
+        _reverb = App.Settings.Current.Reverb;
+        _vocalRemover = App.Settings.Current.VocalRemover;
+        _volume = Math.Clamp(App.Settings.Current.Volume, 0, 100);
+
+        CreateEngine(BuildFilterKey(_vocalRemover, _reverb), wireEvents: true);
+
+        _loopCurrent = App.Settings.Current.LoopCurrent;
+        _shuffle = App.Settings.Current.Shuffle;
+        // Speed is session-only — always launch at normal (1.0x).
+        SetRate(1f);
+        App.Settings.Current.PlaybackSpeed = 1.0;
+        ApplyEqualizer();
+    }
+
+    public void SetBassBoost(bool enabled)
+    {
+        if (_bassBoost == enabled) return;
+        lock (_playbackLock)
+        {
+            _bassBoost = enabled;
+            App.Settings.Current.BassBoost = enabled;
+            App.Settings.ScheduleSave();
+            ApplyEqualizer();
+        }
+
+        EffectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetReverb(bool enabled)
+    {
+        if (_reverb == enabled) return;
+        lock (_playbackLock)
+        {
+            _reverb = enabled;
+            App.Settings.Current.Reverb = enabled;
+            App.Settings.ScheduleSave();
+            EnsureEngineForEffectsUnlocked();
+            ApplyEqualizer();
+        }
+
+        EffectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetVocalRemover(bool enabled)
+    {
+        if (_vocalRemover == enabled) return;
+        lock (_playbackLock)
+        {
+            _vocalRemover = enabled;
+            App.Settings.Current.VocalRemover = enabled;
+            App.Settings.ScheduleSave();
+            EnsureEngineForEffectsUnlocked();
+            ApplyEqualizer();
+        }
+
+        EffectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static string BuildFilterKey(bool vocalRemover, bool reverb)
+    {
+        if (vocalRemover && reverb) return "karaoke,spatializer";
+        if (vocalRemover) return "karaoke";
+        if (reverb) return "spatializer";
+        return "";
+    }
+
+    private void EnsureEngineForEffectsUnlocked()
+    {
+        var key = BuildFilterKey(_vocalRemover, _reverb);
+        if (string.Equals(key, _engineFilterKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var track = _currentTrack;
+        var resume = track is null ? -1L : Math.Max(0, _player.IsPlaying || _resumeMsAfterUserPause < 0
+            ? _player.Time
+            : _resumeMsAfterUserPause);
+        var wasPlaying = track is not null && (_player.IsPlaying || _resumeMsAfterUserPause >= 0);
+
+        CreateEngine(key, wireEvents: true);
+
+        if (wasPlaying && track is not null)
+        {
+            PlayUnlocked(track, resume);
+        }
+    }
+
+    private void CreateEngine(string filterKey, bool wireEvents)
+    {
+        TearDownEngine(unsubscribe: true);
+
+        var args = new List<string>();
+        if (!string.IsNullOrEmpty(filterKey))
+        {
+            args.Add("--audio-filter=" + filterKey);
+        }
+
+        // Spatializer tuned as a hall-ish reverb (wet/dry blend).
+        if (filterKey.Contains("spatializer", StringComparison.Ordinal))
+        {
+            args.Add("--spatializer-roomsize=0.92");
+            args.Add("--spatializer-width=1.0");
+            args.Add("--spatializer-wet=0.48");
+            args.Add("--spatializer-dry=0.72");
+            args.Add("--spatializer-damp=0.38");
+        }
+
+        _libVlc = args.Count == 0 ? new LibVLC() : new LibVLC(args.ToArray());
         _player = new MediaPlayer(_libVlc);
-        _player.EndReached += OnEndReached;
+        _engineFilterKey = filterKey;
+
+        if (wireEvents)
+        {
+            WirePlayerEvents();
+        }
+
+        try
+        {
+            _player.Volume = _volume;
+            _player.SetRate(_rate);
+        }
+        catch
+        {
+            /* apply after create is best-effort */
+        }
+    }
+
+    private void WirePlayerEvents()
+    {
         _onPlayingHandler = (_, _) => PlayStateChanged?.Invoke(this, EventArgs.Empty);
         _onPausedHandler = (_, _) => PlayStateChanged?.Invoke(this, EventArgs.Empty);
+        _player.EndReached += OnEndReached;
         _player.Playing += _onPlayingHandler;
         _player.Paused += _onPausedHandler;
         _player.Stopped += OnStopped;
         _player.TimeChanged += OnTimeChanged;
+    }
 
-        _loopCurrent = App.Settings.Current.LoopCurrent;
-        _shuffle = App.Settings.Current.Shuffle;
-        _player.Volume = App.Settings.Current.Volume;
-        // Speed is session-only — always launch at normal (1.0x).
-        SetRate(1f);
-        App.Settings.Current.PlaybackSpeed = 1.0;
+    private void TearDownEngine(bool unsubscribe)
+    {
+        try
+        {
+            if (_player is not null)
+            {
+                if (unsubscribe)
+                {
+                    try
+                    {
+                        _player.EndReached -= OnEndReached;
+                        _player.TimeChanged -= OnTimeChanged;
+                        _player.Stopped -= OnStopped;
+                        if (_onPlayingHandler is not null) _player.Playing -= _onPlayingHandler;
+                        if (_onPausedHandler is not null) _player.Paused -= _onPausedHandler;
+                    }
+                    catch
+                    {
+                        /* unsubscribe best-effort */
+                    }
+                }
+
+                try { _player.Stop(); } catch { /* ignore */ }
+                _loadedMedia?.Dispose();
+                _loadedMedia = null;
+                _player.Dispose();
+            }
+
+            _equalizer?.Dispose();
+            _equalizer = null;
+            _libVlc?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "AudioPlayer.TearDownEngine");
+        }
+    }
+
+    /// <summary>
+    /// Builds the live equalizer curve. Bass boost hits low bands; vocal remover
+    /// scoops the speech/singing formant range on top of VLC's karaoke filter
+    /// (L−R center cancel — same idea as VLC karaoke.c / voiceout).
+    /// </summary>
+    private void ApplyEqualizer()
+    {
+        if (_disposed || _player is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var eq = new Equalizer();
+            var bandCount = (int)eq.BandCount;
+
+            // Start flat.
+            for (uint i = 0; i < bandCount; i++)
+            {
+                eq.SetAmp(0f, i);
+            }
+
+            eq.SetPreamp(0f);
+
+            if (_bassBoost)
+            {
+                // Typical 10-band layout: 60, 170, 310, 600, 1k, 3k, 6k, 12k, 14k, 16k
+                if (bandCount > 0) eq.SetAmp(14f, 0);
+                if (bandCount > 1) eq.SetAmp(11f, 1);
+                if (bandCount > 2) eq.SetAmp(7f, 2);
+                if (bandCount > 3) eq.SetAmp(3f, 3);
+                eq.SetPreamp(-3.5f);
+            }
+
+            if (_vocalRemover)
+            {
+                // Aggressive mid scoop where vocals live, after karaoke center-cancel.
+                if (bandCount > 2) eq.SetAmp(Math.Min(eq.Amp(2), -4f), 2);
+                if (bandCount > 3) eq.SetAmp(-10f, 3);
+                if (bandCount > 4) eq.SetAmp(-16f, 4);
+                if (bandCount > 5) eq.SetAmp(-14f, 5);
+                if (bandCount > 6) eq.SetAmp(-8f, 6);
+                if (bandCount > 7) eq.SetAmp(-3f, 7);
+                // Keep some low end so the instrumental still has body.
+                if (!_bassBoost && bandCount > 0) eq.SetAmp(2f, 0);
+                if (!_bassBoost && bandCount > 1) eq.SetAmp(1.5f, 1);
+                eq.SetPreamp(eq.Preamp - 1.5f);
+            }
+
+            if (_reverb && !_vocalRemover)
+            {
+                // Mild high-shelf air so spatializer wet signal feels roomier.
+                if (bandCount > 6) eq.SetAmp(Math.Max(eq.Amp(6), 2f), 6);
+                if (bandCount > 7) eq.SetAmp(Math.Max(eq.Amp(7), 3f), 7);
+                if (bandCount > 8) eq.SetAmp(Math.Max(eq.Amp(8), 2.5f), 8);
+            }
+
+            _player.SetEqualizer(eq);
+            _equalizer?.Dispose();
+            _equalizer = eq;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "AudioPlayer.ApplyEqualizer");
+        }
     }
 
     public void SetRate(float rate, bool snapNearNormal = false)
@@ -213,14 +465,16 @@ public sealed class AudioPlayer : IDisposable
                 return;
             }
 
-            // LibVLC can reset rate when switching media — re-apply after Play.
+            // LibVLC can reset rate / EQ when switching media — re-apply after Play.
             try
             {
                 _player.SetRate(_rate);
+                _player.Volume = _volume;
+                ApplyEqualizer();
             }
             catch
             {
-                /* rate re-apply is best-effort */
+                /* rate / FX re-apply is best-effort */
             }
 
             if (resumePositionMs >= 0)
@@ -536,26 +790,8 @@ public sealed class AudioPlayer : IDisposable
         {
             lock (_playbackLock)
             {
-                _player.Stop();
+                TearDownEngine(unsubscribe: true);
             }
-
-            _player.EndReached -= OnEndReached;
-            _player.TimeChanged -= OnTimeChanged;
-            _player.Stopped -= OnStopped;
-            if (_onPlayingHandler is not null)
-            {
-                _player.Playing -= _onPlayingHandler;
-            }
-
-            if (_onPausedHandler is not null)
-            {
-                _player.Paused -= _onPausedHandler;
-            }
-
-            _loadedMedia?.Dispose();
-            _loadedMedia = null;
-            _player.Dispose();
-            _libVlc.Dispose();
         }
         catch { /* shutdown best-effort */ }
     }
