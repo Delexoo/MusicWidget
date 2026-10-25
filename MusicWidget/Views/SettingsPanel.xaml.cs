@@ -126,6 +126,7 @@ public partial class SettingsPanel : UserControl
         App.Player.ShuffleChanged += OnShuffleChanged;
         App.Player.LoopCurrentChanged += OnLoopChanged;
         App.Player.EffectsChanged += OnEffectsChanged;
+        App.Player.VocalSeparationChanged += OnVocalSeparationChanged;
         App.LikedSongs.Changed += OnLikedSongsChanged;
         App.SavedSongs.Changed += OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged += OnBackgroundDownloadProgress;
@@ -165,6 +166,7 @@ public partial class SettingsPanel : UserControl
         _refreshAllDebounceTimer = null;
         App.Player.LoopCurrentChanged -= OnLoopChanged;
         App.Player.EffectsChanged -= OnEffectsChanged;
+        App.Player.VocalSeparationChanged -= OnVocalSeparationChanged;
         App.LikedSongs.Changed -= OnLikedSongsChanged;
         App.SavedSongs.Changed -= OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged -= OnBackgroundDownloadProgress;
@@ -343,7 +345,7 @@ public partial class SettingsPanel : UserControl
 
     private void SyncEffectToggles()
     {
-        if (EffectBassBoostButton is null || EffectReverbButton is null)
+        if (EffectBassBoostButton is null || EffectReverbButton is null || EffectVocalRemoverButton is null)
         {
             return;
         }
@@ -361,6 +363,8 @@ public partial class SettingsPanel : UserControl
                 _ => "Bass off",
             };
             EffectReverbButton.IsChecked = App.Player.Reverb;
+            EffectVocalRemoverButton.IsChecked = App.Player.VocalRemover;
+            EffectVocalRemoverButton.IsEnabled = !App.Player.IsVocalSeparationBusy;
         }
         finally
         {
@@ -380,6 +384,44 @@ public partial class SettingsPanel : UserControl
     {
         if (_suppressEffectToggle || !_isLoaded) return;
         App.Player.SetReverb(EffectReverbButton.IsChecked == true);
+    }
+
+    private void EffectVocalRemover_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEffectToggle || !_isLoaded) return;
+        App.Player.SetVocalRemover(EffectVocalRemoverButton.IsChecked == true);
+    }
+
+    private void OnVocalSeparationChanged(object? sender, VocalSeparationEventArgs e)
+    {
+        UiDispatcher.BeginInvokeSafe(() =>
+        {
+            if (!_isPanelActive || VocalRemoverStatusText is null || EffectVocalRemoverButton is null)
+            {
+                return;
+            }
+
+            EffectVocalRemoverButton.IsEnabled = !e.IsBusy;
+            if (e.IsBusy)
+            {
+                VocalRemoverStatusText.Visibility = Visibility.Visible;
+                VocalRemoverStatusText.Text = e.Status ?? "Removing vocals…";
+                VocalRemoverStatusText.Foreground = (Brush)FindResource("Brush.TextMuted");
+            }
+            else if (e.Failed)
+            {
+                VocalRemoverStatusText.Visibility = Visibility.Visible;
+                VocalRemoverStatusText.Text = string.IsNullOrWhiteSpace(e.Status)
+                    ? "Vocal remover failed — playing original."
+                    : e.Status;
+                VocalRemoverStatusText.Foreground = (Brush)FindResource("Brush.TextMuted");
+            }
+            else
+            {
+                VocalRemoverStatusText.Visibility = Visibility.Collapsed;
+                VocalRemoverStatusText.Text = string.Empty;
+            }
+        });
     }
 
     private void UpdateNowPlayingFooter()

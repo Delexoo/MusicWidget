@@ -1173,8 +1173,20 @@
                               ToolTip="Add hall reverb (playback speed unchanged)"
                               Checked="EffectReverb_Changed"
                               Unchecked="EffectReverb_Changed"/>
+                <ToggleButton x:Name="EffectVocalRemoverButton"
+                              Style="{StaticResource EffectChipToggle}"
+                              Content="Vocal remover"
+                              ToolTip="AI vocal remover (demucs). First use downloads tools/models; each new track is processed once and cached. Playlist files are not changed."
+                              Checked="EffectVocalRemover_Changed"
+                              Unchecked="EffectVocalRemover_Changed"/>
               </StackPanel>
             </Grid>
+            <TextBlock x:Name="VocalRemoverStatusText"
+                       Margin="0,6,0,0"
+                       FontSize="11"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       TextWrapping="Wrap"
+                       Visibility="Collapsed"/>
 
           <Grid>
             <Grid.ColumnDefinitions>

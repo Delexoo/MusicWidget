@@ -30,8 +30,12 @@ public sealed class AudioPlayer : IDisposable
     private Equalizer? _equalizer;
     private int _bassBoostLevel; // 0–3
     private bool _reverb;
+    private bool _vocalRemover;
+    private bool _playingInstrumental;
     private string _engineFilterKey = "";
     private int _volume = 80;
+    private CancellationTokenSource? _vocalSepCts;
+    private int _vocalSepGeneration;
     private static readonly Random _random = new();
 
     public event EventHandler? PlayStateChanged;
@@ -40,6 +44,7 @@ public sealed class AudioPlayer : IDisposable
     public event EventHandler? LoopCurrentChanged;
     public event EventHandler? ShuffleChanged;
     public event EventHandler? EffectsChanged;
+    public event EventHandler<VocalSeparationEventArgs>? VocalSeparationChanged;
 
     public bool IsPlaying => _player.IsPlaying;
     public long PositionMs => Math.Max(0, _player.Time);
@@ -49,6 +54,9 @@ public sealed class AudioPlayer : IDisposable
     public bool Shuffle => _shuffle;
     public int BassBoostLevel => _bassBoostLevel;
     public bool Reverb => _reverb;
+    public bool VocalRemover => _vocalRemover;
+    public bool IsPlayingInstrumental => _playingInstrumental;
+    public bool IsVocalSeparationBusy { get; private set; }
 
     public int Volume
     {
@@ -93,6 +101,7 @@ public sealed class AudioPlayer : IDisposable
 
         _bassBoostLevel = Math.Clamp(App.Settings.Current.BassBoostLevel, 0, 3);
         _reverb = App.Settings.Current.Reverb;
+        _vocalRemover = App.Settings.Current.VocalRemover;
         _volume = Math.Clamp(App.Settings.Current.Volume, 0, 100);
 
         CreateEngine(BuildFilterKey(_reverb), wireEvents: true);
@@ -148,6 +157,59 @@ public sealed class AudioPlayer : IDisposable
         }
 
         EffectsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Toggles AI instrumental playback (cached demucs-onnx karaoke). Does not change playlist files.
+    /// </summary>
+    public void SetVocalRemover(bool enabled)
+    {
+        if (_vocalRemover == enabled) return;
+
+        Track? track;
+        long resume;
+        bool resumePlayback;
+        lock (_playbackLock)
+        {
+            _vocalRemover = enabled;
+            App.Settings.Current.VocalRemover = enabled;
+            App.Settings.ScheduleSave();
+            track = _currentTrack;
+            resume = Math.Max(0, _player.IsPlaying || _resumeMsAfterUserPause < 0
+                ? _player.Time
+                : _resumeMsAfterUserPause);
+            resumePlayback = track is not null && (_player.IsPlaying || _resumeMsAfterUserPause >= 0);
+        }
+
+        EffectsChanged?.Invoke(this, EventArgs.Empty);
+
+        if (track is null)
+        {
+            CancelVocalSeparation();
+            return;
+        }
+
+        CancelVocalSeparation();
+        lock (_playbackLock)
+        {
+            PlayUnlocked(track, resumePlayback ? resume : -1);
+        }
+    }
+
+    private void CancelVocalSeparation()
+    {
+        try
+        {
+            _vocalSepCts?.Cancel();
+        }
+        catch { /* ignore */ }
+
+        _vocalSepCts = null;
+        if (IsVocalSeparationBusy)
+        {
+            IsVocalSeparationBusy = false;
+            VocalSeparationChanged?.Invoke(this, new VocalSeparationEventArgs(false, null, _currentTrack));
+        }
     }
 
     private static string BuildFilterKey(bool reverb) =>
@@ -428,69 +490,181 @@ public sealed class AudioPlayer : IDisposable
             _currentTrack = track;
             Interlocked.Exchange(ref _trackEndAdvanceScheduled, 0);
 
-            if (resumePositionMs < 0)
-            {
-                _player.Stop();
-                _loadedMedia?.Dispose();
-                _loadedMedia = null;
-            }
+            var mediaPath = track.FilePath;
+            _playingInstrumental = false;
 
-            _loadedMedia = new Media(_libVlc, new Uri(track.FilePath));
-            if (!_player.Play(_loadedMedia))
+            if (_vocalRemover)
             {
-                _loadedMedia.Dispose();
-                _loadedMedia = null;
-                return;
-            }
-
-            // LibVLC can reset rate / EQ when switching media — re-apply after Play.
-            try
-            {
-                _player.SetRate(_rate);
-                _player.Volume = _volume;
-                ApplyEqualizer();
-            }
-            catch
-            {
-                /* rate / FX re-apply is best-effort */
-            }
-
-            if (resumePositionMs >= 0)
-            {
-                var targetMs = resumePositionMs;
-                ThreadPool.QueueUserWorkItem(_ =>
+                var cached = App.Stems.TryGetCachedInstrumental(track.FilePath);
+                if (cached is not null)
                 {
-                    Thread.Sleep(140);
-                    try
-                    {
-                        if (_disposed || !_player.IsPlaying)
-                        {
-                            return;
-                        }
-
-                        long pos = Math.Max(0, targetMs);
-                        var len = _player.Length;
-                        if (len > 0)
-                        {
-                            pos = Math.Min(pos, Math.Max(0, len - 250));
-                        }
-
-                        _player.Time = pos;
-                    }
-                    catch
-                    {
-                        /* seek is best-effort */
-                    }
-                });
+                    mediaPath = cached;
+                    _playingInstrumental = true;
+                }
+                else
+                {
+                    try { _player.Stop(); } catch { /* ignore */ }
+                    CurrentTrackChanged?.Invoke(this, EventArgs.Empty);
+                    PositionChanged?.Invoke(this, EventArgs.Empty);
+                    BeginVocalSeparationThenPlay(track, resumePositionMs);
+                    return;
+                }
             }
 
-            CurrentTrackChanged?.Invoke(this, EventArgs.Empty);
-            PositionChanged?.Invoke(this, EventArgs.Empty);
+            PlayMediaPathUnlocked(track, mediaPath, resumePositionMs);
         }
         catch (Exception ex)
         {
             CrashLog.Write(ex, "AudioPlayer.Play");
         }
+    }
+
+    private void PlayMediaPathUnlocked(Track track, string mediaPath, long resumePositionMs)
+    {
+        if (_disposed || !File.Exists(mediaPath))
+        {
+            return;
+        }
+
+        if (resumePositionMs < 0)
+        {
+            _player.Stop();
+            _loadedMedia?.Dispose();
+            _loadedMedia = null;
+        }
+
+        _loadedMedia = new Media(_libVlc, new Uri(mediaPath));
+        if (!_player.Play(_loadedMedia))
+        {
+            _loadedMedia.Dispose();
+            _loadedMedia = null;
+            return;
+        }
+
+        try
+        {
+            _player.SetRate(_rate);
+            _player.Volume = _volume;
+            ApplyEqualizer();
+        }
+        catch
+        {
+            /* rate / FX re-apply is best-effort */
+        }
+
+        if (resumePositionMs >= 0)
+        {
+            var targetMs = resumePositionMs;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                Thread.Sleep(140);
+                try
+                {
+                    if (_disposed || !_player.IsPlaying)
+                    {
+                        return;
+                    }
+
+                    long pos = Math.Max(0, targetMs);
+                    var len = _player.Length;
+                    if (len > 0)
+                    {
+                        pos = Math.Min(pos, Math.Max(0, len - 250));
+                    }
+
+                    _player.Time = pos;
+                }
+                catch
+                {
+                    /* seek is best-effort */
+                }
+            });
+        }
+
+        CurrentTrackChanged?.Invoke(this, EventArgs.Empty);
+        PositionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void BeginVocalSeparationThenPlay(Track track, long resumePositionMs)
+    {
+        CancelVocalSeparation();
+        var cts = new CancellationTokenSource();
+        _vocalSepCts = cts;
+        var generation = Interlocked.Increment(ref _vocalSepGeneration);
+        IsVocalSeparationBusy = true;
+        VocalSeparationChanged?.Invoke(this,
+            new VocalSeparationEventArgs(true, "Removing vocals (AI)…", track));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var progress = new Progress<DownloadProgressUpdate>(u =>
+                {
+                    if (generation != Volatile.Read(ref _vocalSepGeneration)) return;
+                    var msg = string.IsNullOrWhiteSpace(u.Message) ? "Removing vocals…" : u.Message;
+                    VocalSeparationChanged?.Invoke(this,
+                        new VocalSeparationEventArgs(true, msg, track));
+                });
+
+                var instrumental = await App.Stems
+                    .GetOrCreateInstrumentalAsync(track.FilePath, progress, cts.Token)
+                    .ConfigureAwait(false);
+
+                if (cts.IsCancellationRequested || generation != Volatile.Read(ref _vocalSepGeneration))
+                {
+                    return;
+                }
+
+                lock (_playbackLock)
+                {
+                    if (_disposed || !_vocalRemover)
+                    {
+                        return;
+                    }
+
+                    if (_currentTrack is null
+                        || !string.Equals(_currentTrack.FilePath, track.FilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    _playingInstrumental = true;
+                    PlayMediaPathUnlocked(track, instrumental, resumePositionMs);
+                }
+
+                IsVocalSeparationBusy = false;
+                VocalSeparationChanged?.Invoke(this,
+                    new VocalSeparationEventArgs(false, null, track));
+            }
+            catch (OperationCanceledException)
+            {
+                IsVocalSeparationBusy = false;
+                VocalSeparationChanged?.Invoke(this,
+                    new VocalSeparationEventArgs(false, null, track));
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write(ex, "AudioPlayer.VocalSeparation");
+                IsVocalSeparationBusy = false;
+                VocalSeparationChanged?.Invoke(this,
+                    new VocalSeparationEventArgs(false, ex.Message, track, failed: true));
+
+                // Fall back to original audio so the user is not stuck silent.
+                lock (_playbackLock)
+                {
+                    if (_disposed || !_vocalRemover) return;
+                    if (_currentTrack is null
+                        || !string.Equals(_currentTrack.FilePath, track.FilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    _playingInstrumental = false;
+                    PlayMediaPathUnlocked(track, track.FilePath, resumePositionMs);
+                }
+            }
+        });
     }
 
     public void TogglePlayPause()
@@ -764,6 +938,7 @@ public sealed class AudioPlayer : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        CancelVocalSeparation();
         try
         {
             lock (_playbackLock)

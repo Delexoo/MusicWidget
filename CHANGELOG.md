@@ -2,6 +2,11 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.31] - 2026-10-25
+
+### Added
+- **Vocal remover** Effects toggle — AI instrumental via demucs-onnx (cached under AppData; playlist files unchanged). First use downloads Python + model.
+
 ## [2.2.30] - 2026-10-25
 
 ### Fixed

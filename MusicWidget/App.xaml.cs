@@ -19,6 +19,7 @@ public partial class App : Application
     public static DownloadService Downloader { get; private set; } = null!;
     public static BackgroundDownloadService BackgroundDownloads { get; private set; } = null!;
     public static ToolBootstrapper Tools { get; private set; } = null!;
+    public static StemSeparationService Stems { get; private set; } = null!;
     public static ArtworkService Artwork { get; private set; } = null!;
     public static UpdateService Updates { get; private set; } = null!;
     public static TrackListStore LikedSongs { get; private set; } = null!;
@@ -31,6 +32,7 @@ public partial class App : Application
 
     public static string ToolsDir { get; } = Path.Combine(AppDataDir, "tools");
     public static string ArtworkDir { get; } = Path.Combine(AppDataDir, "artwork");
+    public static string StemsDir { get; } = Path.Combine(AppDataDir, "stems");
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -56,6 +58,7 @@ public partial class App : Application
             Directory.CreateDirectory(AppDataDir);
             Directory.CreateDirectory(ToolsDir);
             Directory.CreateDirectory(ArtworkDir);
+            Directory.CreateDirectory(StemsDir);
 
             Settings = new SettingsStore(Path.Combine(AppDataDir, "settings.json"));
             Settings.Load();
@@ -64,8 +67,9 @@ public partial class App : Application
             PlaylistOrders.Load();
 
             Playlists = new PlaylistManager(Settings, PlaylistOrders);
-            Player = new AudioPlayer();
             Tools = new ToolBootstrapper(ToolsDir);
+            Stems = new StemSeparationService(Tools, StemsDir);
+            Player = new AudioPlayer();
             Downloader = new DownloadService(Tools);
             BackgroundDownloads = new BackgroundDownloadService();
             Artwork = new ArtworkService(ArtworkDir);

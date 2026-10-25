@@ -59,6 +59,12 @@ public sealed class AppSettings
     public bool Reverb { get; set; }
 
     /// <summary>
+    /// When true, playback uses a cached AI instrumental (demucs-onnx karaoke)
+    /// instead of the original file. Playlist files are never modified.
+    /// </summary>
+    public bool VocalRemover { get; set; }
+
+    /// <summary>
     /// When true, clicking outside the dashboard does not collapse it — only the
     /// minimize button (or hotkey) closes/hides the widget.
     /// </summary>

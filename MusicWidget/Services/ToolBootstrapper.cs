@@ -33,14 +33,26 @@ public sealed class ToolBootstrapper
     private const string YtDlpChannelMarkerFile = ".yt-dlp-channel";
     private const string YtDlpChannelMarkerValue = "nightly-v1";
 
+    // Embeddable CPython + demucs-onnx for AI vocal remover (lazy, first toggle).
+    private const string PythonEmbedUrl =
+        "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip";
+    private const string GetPipUrl = "https://bootstrap.pypa.io/get-pip.py";
+    private const string VocalSepVersionMarkerFile = ".vocal-sep-version";
+    private const string VocalSepVersionMarkerValue = "demucs-onnx-1";
+
     private readonly string _toolsDir;
+    private readonly string _vocalSepDir;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly SemaphoreSlim _vocalSepGate = new(1, 1);
     private bool _ensured;
 
     public string YtDlpPath { get; }
     public string FfmpegPath { get; }
     public string SpotDlPath { get; }
     public string ToolsDirectory => _toolsDir;
+    public string VocalSepDirectory => _vocalSepDir;
+    public string VocalSeparatorPython { get; }
+    public string VocalSeparatorCli { get; }
 
     public ToolBootstrapper(string toolsDir)
     {
@@ -49,11 +61,19 @@ public sealed class ToolBootstrapper
         YtDlpPath = Path.Combine(_toolsDir, "yt-dlp.exe");
         FfmpegPath = Path.Combine(_toolsDir, "ffmpeg.exe");
         SpotDlPath = Path.Combine(_toolsDir, "spotdl.exe");
+        _vocalSepDir = Path.Combine(_toolsDir, "vocal-sep");
+        Directory.CreateDirectory(_vocalSepDir);
+        VocalSeparatorPython = Path.Combine(_vocalSepDir, "python", "python.exe");
+        VocalSeparatorCli = Path.Combine(_vocalSepDir, "python", "Scripts", "demucs-onnx.exe");
     }
 
     public bool AreToolsReady => File.Exists(YtDlpPath) && File.Exists(FfmpegPath);
 
     public bool IsSpotDlReady => File.Exists(SpotDlPath);
+
+    public bool IsVocalSeparatorReady =>
+        File.Exists(VocalSeparatorPython)
+        && File.Exists(Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile));
 
     public async Task EnsureToolsAsync(
         IProgress<DownloadProgressUpdate>? progress = null,
@@ -208,6 +228,187 @@ public sealed class ToolBootstrapper
         {
             // Best-effort; migration may run again next launch.
         }
+    }
+
+    /// <summary>
+    /// Ensures embeddable Python + demucs-onnx are installed for AI vocal removal.
+    /// Large one-time download; progress is reported like other tool bootstraps.
+    /// </summary>
+    public async Task EnsureVocalSeparatorAsync(
+        IProgress<DownloadProgressUpdate>? progress = null,
+        CancellationToken ct = default)
+    {
+        if (IsVocalSeparatorReady)
+        {
+            return;
+        }
+
+        await EnsureToolsAsync(progress, ct);
+
+        await _vocalSepGate.WaitAsync(ct);
+        try
+        {
+            if (IsVocalSeparatorReady)
+            {
+                return;
+            }
+
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(AppBranding.UserAgent);
+            http.Timeout = TimeSpan.FromMinutes(30);
+
+            var pythonDir = Path.Combine(_vocalSepDir, "python");
+            if (!File.Exists(VocalSeparatorPython))
+            {
+                progress?.Report(new DownloadProgressUpdate(2,
+                    "Downloading Python for vocal remover (~15MB)..."));
+                var zipPath = Path.Combine(_vocalSepDir, "python-embed.zip");
+                await DownloadFileAsync(http, PythonEmbedUrl, zipPath, progress,
+                    "Downloading Python", 2, 25, ct);
+
+                progress?.Report(new DownloadProgressUpdate(26, "Extracting Python..."));
+                if (Directory.Exists(pythonDir))
+                {
+                    try { Directory.Delete(pythonDir, recursive: true); } catch { /* retry extract */ }
+                }
+
+                Directory.CreateDirectory(pythonDir);
+                ZipFile.ExtractToDirectory(zipPath, pythonDir, overwriteFiles: true);
+                try { File.Delete(zipPath); } catch { }
+
+                EnableEmbeddableSitePackages(pythonDir);
+            }
+
+            progress?.Report(new DownloadProgressUpdate(30, "Bootstrapping pip..."));
+            await EnsurePipAsync(http, progress, ct);
+
+            progress?.Report(new DownloadProgressUpdate(45,
+                "Installing demucs-onnx (AI vocal remover)..."));
+            await PipInstallVocalSeparatorAsync(progress, ct);
+
+            File.WriteAllText(
+                Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile),
+                VocalSepVersionMarkerValue + Environment.NewLine);
+
+            progress?.Report(new DownloadProgressUpdate(100, "Vocal remover ready."));
+        }
+        finally
+        {
+            _vocalSepGate.Release();
+        }
+    }
+
+    private static void EnableEmbeddableSitePackages(string pythonDir)
+    {
+        foreach (var pth in Directory.EnumerateFiles(pythonDir, "python*._pth"))
+        {
+            var text = File.ReadAllText(pth);
+            text = text.Replace("#import site", "import site", StringComparison.Ordinal);
+            if (!text.Contains("import site", StringComparison.Ordinal))
+            {
+                text = text.TrimEnd() + Environment.NewLine + "import site" + Environment.NewLine;
+            }
+
+            if (!text.Contains("Lib\\site-packages", StringComparison.OrdinalIgnoreCase)
+                && !text.Contains("Lib/site-packages", StringComparison.OrdinalIgnoreCase))
+            {
+                text = text.TrimEnd() + Environment.NewLine + "Lib\\site-packages" + Environment.NewLine;
+            }
+
+            File.WriteAllText(pth, text);
+        }
+    }
+
+    private async Task EnsurePipAsync(
+        HttpClient http,
+        IProgress<DownloadProgressUpdate>? progress,
+        CancellationToken ct)
+    {
+        var getPip = Path.Combine(_vocalSepDir, "get-pip.py");
+        if (!File.Exists(getPip))
+        {
+            await DownloadFileAsync(http, GetPipUrl, getPip, progress, "Downloading get-pip", 30, 40, ct);
+        }
+
+        // Already have pip?
+        if (await RunPythonAsync(["-m", "pip", "--version"], ct) == 0)
+        {
+            return;
+        }
+
+        var code = await RunPythonAsync([getPip, "--no-warn-script-location"], ct);
+        if (code != 0)
+        {
+            throw new InvalidOperationException("Could not install pip for the vocal remover Python runtime.");
+        }
+    }
+
+    private async Task PipInstallVocalSeparatorAsync(
+        IProgress<DownloadProgressUpdate>? progress,
+        CancellationToken ct)
+    {
+        // Prefer DirectML on Windows; fall back to CPU onnxruntime.
+        var packages = new[]
+        {
+            "demucs-onnx",
+            "demucs-onnx[mp3]",
+            "onnxruntime-directml",
+        };
+
+        var installArgs = new List<string>
+        {
+            "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
+        };
+        installArgs.AddRange(packages);
+        var code = await RunPythonAsync(installArgs, ct);
+        if (code != 0)
+        {
+            progress?.Report(new DownloadProgressUpdate(60,
+                "DirectML install failed; trying CPU onnxruntime..."));
+            code = await RunPythonAsync(
+                [
+                    "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
+                    "demucs-onnx", "demucs-onnx[mp3]", "onnxruntime"
+                ],
+                ct);
+        }
+
+        if (code != 0)
+        {
+            throw new InvalidOperationException(
+                "Could not install demucs-onnx. Check your network and try again.");
+        }
+    }
+
+    private async Task<int> RunPythonAsync(IReadOnlyList<string> args, CancellationToken ct)
+    {
+        if (!File.Exists(VocalSeparatorPython))
+        {
+            return -1;
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = VocalSeparatorPython,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = _vocalSepDir,
+        };
+        foreach (var a in args)
+        {
+            psi.ArgumentList.Add(a);
+        }
+
+        using var proc = Process.Start(psi);
+        if (proc is null)
+        {
+            return -1;
+        }
+
+        await proc.WaitForExitAsync(ct);
+        return proc.ExitCode;
     }
 
     /// <summary>
