@@ -29,12 +29,9 @@ public sealed class AudioPlayer : IDisposable
     private EventHandler<EventArgs>? _onPausedHandler;
     private Equalizer? _equalizer;
     private int _bassBoostLevel; // 0–3
-    private bool _slowedReverb;
-    private bool _vocalRemover;
-    private float _rateBeforeSlowedReverb = 1f;
+    private bool _reverb;
     private string _engineFilterKey = "";
     private int _volume = 80;
-    private const float SlowedReverbRate = 0.80f;
     private static readonly Random _random = new();
 
     public event EventHandler? PlayStateChanged;
@@ -51,8 +48,7 @@ public sealed class AudioPlayer : IDisposable
     public bool LoopCurrent => _loopCurrent;
     public bool Shuffle => _shuffle;
     public int BassBoostLevel => _bassBoostLevel;
-    public bool SlowedReverb => _slowedReverb;
-    public bool VocalRemover => _vocalRemover;
+    public bool Reverb => _reverb;
 
     public int Volume
     {
@@ -96,24 +92,15 @@ public sealed class AudioPlayer : IDisposable
         }
 
         _bassBoostLevel = Math.Clamp(App.Settings.Current.BassBoostLevel, 0, 3);
-        _slowedReverb = App.Settings.Current.SlowedReverb;
-        _vocalRemover = App.Settings.Current.VocalRemover;
+        _reverb = App.Settings.Current.Reverb;
         _volume = Math.Clamp(App.Settings.Current.Volume, 0, 100);
 
-        CreateEngine(BuildFilterKey(_vocalRemover, _slowedReverb), wireEvents: true);
+        CreateEngine(BuildFilterKey(_reverb), wireEvents: true);
 
         _loopCurrent = App.Settings.Current.LoopCurrent;
         _shuffle = App.Settings.Current.Shuffle;
-        // Speed is session-only — always launch at normal (1.0x), unless Slowed & Reverb is on.
-        if (_slowedReverb)
-        {
-            _rateBeforeSlowedReverb = 1f;
-            SetRate(SlowedReverbRate);
-        }
-        else
-        {
-            SetRate(1f);
-        }
+        // Speed is session-only — always launch at normal (1.0x).
+        SetRate(1f);
 
         App.Settings.Current.PlaybackSpeed = _rate;
         ApplyEqualizer();
@@ -148,45 +135,13 @@ public sealed class AudioPlayer : IDisposable
         EffectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SetSlowedReverb(bool enabled)
+    public void SetReverb(bool enabled)
     {
-        if (_slowedReverb == enabled) return;
+        if (_reverb == enabled) return;
         lock (_playbackLock)
         {
-            if (enabled)
-            {
-                _rateBeforeSlowedReverb = _rate <= 0.01f ? 1f : _rate;
-                _slowedReverb = true;
-                App.Settings.Current.SlowedReverb = true;
-                App.Settings.ScheduleSave();
-                EnsureEngineForEffectsUnlocked();
-                SetRate(SlowedReverbRate);
-                App.Settings.Current.PlaybackSpeed = SlowedReverbRate;
-                ApplyEqualizer();
-            }
-            else
-            {
-                _slowedReverb = false;
-                App.Settings.Current.SlowedReverb = false;
-                App.Settings.ScheduleSave();
-                EnsureEngineForEffectsUnlocked();
-                var restore = Math.Clamp(_rateBeforeSlowedReverb, 0.5f, 2.0f);
-                SetRate(restore);
-                App.Settings.Current.PlaybackSpeed = restore;
-                ApplyEqualizer();
-            }
-        }
-
-        EffectsChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public void SetVocalRemover(bool enabled)
-    {
-        if (_vocalRemover == enabled) return;
-        lock (_playbackLock)
-        {
-            _vocalRemover = enabled;
-            App.Settings.Current.VocalRemover = enabled;
+            _reverb = enabled;
+            App.Settings.Current.Reverb = enabled;
             App.Settings.ScheduleSave();
             EnsureEngineForEffectsUnlocked();
             ApplyEqualizer();
@@ -195,17 +150,12 @@ public sealed class AudioPlayer : IDisposable
         EffectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private static string BuildFilterKey(bool vocalRemover, bool slowedReverb)
-    {
-        if (vocalRemover && slowedReverb) return "karaoke,spatializer";
-        if (vocalRemover) return "karaoke";
-        if (slowedReverb) return "spatializer";
-        return "";
-    }
+    private static string BuildFilterKey(bool reverb) =>
+        reverb ? "spatializer" : "";
 
     private void EnsureEngineForEffectsUnlocked()
     {
-        var key = BuildFilterKey(_vocalRemover, _slowedReverb);
+        var key = BuildFilterKey(_reverb);
         if (string.Equals(key, _engineFilterKey, StringComparison.Ordinal))
         {
             return;
@@ -235,14 +185,13 @@ public sealed class AudioPlayer : IDisposable
             args.Add("--audio-filter=" + filterKey);
         }
 
-        // Wet hall for Slowed & Reverb (and when stacked with vocal remover).
         if (filterKey.Contains("spatializer", StringComparison.Ordinal))
         {
-            args.Add("--spatializer-roomsize=1.0");
-            args.Add("--spatializer-width=1.0");
-            args.Add("--spatializer-wet=0.72");
-            args.Add("--spatializer-dry=0.40");
-            args.Add("--spatializer-damp=0.22");
+            args.Add("--spatializer-roomsize=0.95");
+            args.Add("--spatializer-width=0.90");
+            args.Add("--spatializer-wet=0.55");
+            args.Add("--spatializer-dry=0.55");
+            args.Add("--spatializer-damp=0.30");
         }
 
         _libVlc = args.Count == 0 ? new LibVLC() : new LibVLC(args.ToArray());
@@ -314,10 +263,7 @@ public sealed class AudioPlayer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Builds the live equalizer curve. Bass has 3 intensity levels; vocal remover
-    /// deeply scoops formants on top of VLC karaoke (L−R center cancel).
-    /// </summary>
+    /// <summary>Builds the live equalizer curve (3-level bass boost + light reverb air).</summary>
     private void ApplyEqualizer()
     {
         if (_disposed || _player is null)
@@ -354,38 +300,11 @@ public sealed class AudioPlayer : IDisposable
                 eq.SetPreamp(pre);
             }
 
-            if (_vocalRemover)
+            if (_reverb)
             {
-                // Hard mid scoop after karaoke center-cancel — vocals sit ~250Hz–4kHz.
-                // Use absolute cuts (overwrite bass mid gains in the vocal range).
-                if (bandCount > 1) eq.SetAmp(Math.Min(eq.Amp(1), -6f), 1);   // 170
-                if (bandCount > 2) eq.SetAmp(-14f, 2);                        // 310
-                if (bandCount > 3) eq.SetAmp(-20f, 3);                        // 600
-                if (bandCount > 4) eq.SetAmp(-20f, 4);                        // 1k
-                if (bandCount > 5) eq.SetAmp(-20f, 5);                        // 3k
-                if (bandCount > 6) eq.SetAmp(-16f, 6);                        // 6k
-                if (bandCount > 7) eq.SetAmp(-10f, 7);                        // 12k
-                if (bandCount > 8) eq.SetAmp(-6f, 8);
-                // Preserve / slightly lift sub so the track still has body.
-                if (_bassBoostLevel == 0)
-                {
-                    if (bandCount > 0) eq.SetAmp(4f, 0);
-                }
-                else if (bandCount > 0)
-                {
-                    eq.SetAmp(Math.Max(eq.Amp(0), 6f), 0);
-                }
-
-                eq.SetPreamp(eq.Preamp - 2.5f);
-            }
-
-            if (_slowedReverb)
-            {
-                // Extra air/tail so the wet spatializer reads as classic slowed+reverb.
-                if (bandCount > 6) eq.SetAmp(Math.Max(eq.Amp(6), 3f), 6);
-                if (bandCount > 7) eq.SetAmp(Math.Max(eq.Amp(7), 4f), 7);
-                if (bandCount > 8) eq.SetAmp(Math.Max(eq.Amp(8), 3.5f), 8);
-                if (bandCount > 9) eq.SetAmp(Math.Max(eq.Amp(9), 2f), 9);
+                // Slight treble air so the spatializer reads as a clear hall.
+                if (bandCount > 7) eq.SetAmp(Math.Max(eq.Amp(7), 2f), 7);
+                if (bandCount > 8) eq.SetAmp(Math.Max(eq.Amp(8), 1.5f), 8);
             }
 
             _player.SetEqualizer(eq);

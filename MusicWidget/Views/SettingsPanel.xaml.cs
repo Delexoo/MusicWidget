@@ -343,7 +343,7 @@ public partial class SettingsPanel : UserControl
 
     private void SyncEffectToggles()
     {
-        if (EffectBassBoostButton is null || EffectSlowedReverbButton is null || EffectVocalRemoverButton is null)
+        if (EffectBassBoostButton is null || EffectReverbButton is null)
         {
             return;
         }
@@ -360,25 +360,7 @@ public partial class SettingsPanel : UserControl
                 3 => "Bass 3",
                 _ => "Bass off",
             };
-            EffectSlowedReverbButton.IsChecked = App.Player.SlowedReverb;
-            EffectVocalRemoverButton.IsChecked = App.Player.VocalRemover;
-
-            // Keep the speed slider in sync when Slowed & Reverb changes rate.
-            if (FooterSpeedSlider is not null)
-            {
-                var rate = App.Player.Rate;
-                _suppressSpeedChanged = true;
-                try
-                {
-                    FooterSpeedSlider.Value = rate;
-                }
-                finally
-                {
-                    _suppressSpeedChanged = false;
-                }
-
-                UpdateFooterSpeedLabel(rate);
-            }
+            EffectReverbButton.IsChecked = App.Player.Reverb;
         }
         finally
         {
@@ -394,16 +376,10 @@ public partial class SettingsPanel : UserControl
         SyncEffectToggles();
     }
 
-    private void EffectSlowedReverb_Changed(object sender, RoutedEventArgs e)
+    private void EffectReverb_Changed(object sender, RoutedEventArgs e)
     {
         if (_suppressEffectToggle || !_isLoaded) return;
-        App.Player.SetSlowedReverb(EffectSlowedReverbButton.IsChecked == true);
-    }
-
-    private void EffectVocalRemover_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEffectToggle || !_isLoaded) return;
-        App.Player.SetVocalRemover(EffectVocalRemoverButton.IsChecked == true);
+        App.Player.SetReverb(EffectReverbButton.IsChecked == true);
     }
 
     private void UpdateNowPlayingFooter()

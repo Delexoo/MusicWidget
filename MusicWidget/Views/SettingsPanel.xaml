@@ -1167,18 +1167,12 @@
                         Tag="False"
                         ToolTip="Bass boost: click to cycle Off → 1 → 2 → 3 (extreme)"
                         Click="EffectBassBoost_Click"/>
-                <ToggleButton x:Name="EffectSlowedReverbButton"
+                <ToggleButton x:Name="EffectReverbButton"
                               Style="{StaticResource EffectChipToggle}"
-                              Content="Slowed &amp; reverb"
-                              ToolTip="Slow to 0.8x and add hall reverb"
-                              Checked="EffectSlowedReverb_Changed"
-                              Unchecked="EffectSlowedReverb_Changed"/>
-                <ToggleButton x:Name="EffectVocalRemoverButton"
-                              Style="{StaticResource EffectChipToggle}"
-                              Content="Vocal remover"
-                              ToolTip="Strong karaoke-style vocal remove (center cancel + deep mid scoop). Works best on stereo mixes."
-                              Checked="EffectVocalRemover_Changed"
-                              Unchecked="EffectVocalRemover_Changed"/>
+                              Content="Reverb"
+                              ToolTip="Add hall reverb (playback speed unchanged)"
+                              Checked="EffectReverb_Changed"
+                              Unchecked="EffectReverb_Changed"/>
               </StackPanel>
             </Grid>
 

@@ -36,6 +36,15 @@ public sealed class SettingsStore
                     var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
                     if (loaded is not null)
                     {
+                        // Older builds stored SlowedReverb; map onto Reverb when missing.
+                        if (!loaded.Reverb
+                            && json.Contains("\"SlowedReverb\"", StringComparison.Ordinal)
+                            && (json.Contains("\"SlowedReverb\": true", StringComparison.Ordinal)
+                                || json.Contains("\"SlowedReverb\":true", StringComparison.Ordinal)))
+                        {
+                            loaded.Reverb = true;
+                        }
+
                         Current = loaded;
                     }
                 }

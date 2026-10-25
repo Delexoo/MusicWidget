@@ -2,10 +2,13 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.28] - 2026-10-25
+## [2.2.29] - 2026-10-25
 
-### Fixed
-- Playlist play/pause icon now follows the playlist that owns the current track (selecting another playlist no longer shows a false Pause on empty lists)
+### Changed
+- **Slowed & reverb** is plain **Reverb** again (hall only; no 0.8x slowdown)
+
+### Removed
+- Vocal remover effect
 
 ## [2.2.28] - 2026-10-25
 

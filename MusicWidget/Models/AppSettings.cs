@@ -55,14 +55,8 @@ public sealed class AppSettings
     /// <summary>Bass boost intensity: 0 = off, 1–3 (3 = extreme).</summary>
     public int BassBoostLevel { get; set; }
 
-    /// <summary>Slow playback (~0.8x) plus hall reverb (spatializer).</summary>
-    public bool SlowedReverb { get; set; }
-
-    /// <summary>
-    /// Real-time vocal remover (center-channel cancel + deep mid scoop).
-    /// Inspired by VLC karaoke / voiceout-style phase cancellation.
-    /// </summary>
-    public bool VocalRemover { get; set; }
+    /// <summary>Hall reverb (LibVLC spatializer).</summary>
+    public bool Reverb { get; set; }
 
     /// <summary>
     /// When true, clicking outside the dashboard does not collapse it — only the
