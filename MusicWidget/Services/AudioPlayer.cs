@@ -58,12 +58,15 @@ public sealed class AudioPlayer : IDisposable
     public bool IsPlayingInstrumental => _playingInstrumental;
     public bool IsVocalSeparationBusy { get; private set; }
 
+    /// <summary>LibVLC software volume percent. 100 = nominal; up to <see cref="MaxVolume"/> for boost.</summary>
+    public const int MaxVolume = 200;
+
     public int Volume
     {
         get => _volume;
         set
         {
-            _volume = Math.Clamp(value, 0, 100);
+            _volume = Math.Clamp(value, 0, MaxVolume);
             try
             {
                 if (!_disposed)
@@ -102,7 +105,7 @@ public sealed class AudioPlayer : IDisposable
         _bassBoostLevel = Math.Clamp(App.Settings.Current.BassBoostLevel, 0, 3);
         _reverb = App.Settings.Current.Reverb;
         _vocalRemover = App.Settings.Current.VocalRemover;
-        _volume = Math.Clamp(App.Settings.Current.Volume, 0, 100);
+        _volume = Math.Clamp(App.Settings.Current.Volume, 0, MaxVolume);
 
         CreateEngine(BuildFilterKey(_reverb), wireEvents: true);
 
@@ -348,17 +351,19 @@ public sealed class AudioPlayer : IDisposable
 
             if (_bassBoostLevel > 0)
             {
-                // Level 1 mild → 2 strong → 3 extreme (near EQ max on sub/bass).
-                var (b0, b1, b2, b3, pre) = _bassBoostLevel switch
+                // Level 1 mild → 2 strong → 3 extreme (LibVLC amp max ≈ ±20 dB).
+                var (b0, b1, b2, b3, b4, pre) = _bassBoostLevel switch
                 {
-                    1 => (8f, 6f, 3f, 1f, -2f),
-                    2 => (14f, 11f, 7f, 3f, -3.5f),
-                    _ => (20f, 18f, 12f, 6f, -5.5f), // level 3 extreme
+                    1 => (8f, 6f, 3f, 1f, 0f, -2f),
+                    2 => (14f, 11f, 7f, 3f, 0f, -3.5f),
+                    // Level 3: slam every low band to the rail + mild preamp lift.
+                    _ => (20f, 20f, 20f, 16f, 8f, 3f),
                 };
                 if (bandCount > 0) eq.SetAmp(b0, 0);
                 if (bandCount > 1) eq.SetAmp(b1, 1);
                 if (bandCount > 2) eq.SetAmp(b2, 2);
                 if (bandCount > 3) eq.SetAmp(b3, 3);
+                if (bandCount > 4) eq.SetAmp(b4, 4);
                 eq.SetPreamp(pre);
             }
 

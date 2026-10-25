@@ -2,6 +2,13 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.33] - 2026-10-25
+
+### Changed
+- Volume slider now goes to **200%** with a live percent label (same style as speed)
+- Bass boost **level 3** is much louder (max low-band EQ + mild preamp lift)
+- Downloads use highest quality encode (yt-dlp V0 / spotDL **320k**)
+
 ## [2.2.32] - 2026-10-25
 
 ### Fixed

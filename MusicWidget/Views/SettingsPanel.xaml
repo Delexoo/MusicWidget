@@ -1377,11 +1377,12 @@
             <StackPanel Grid.Column="2"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Right"
-                        Width="248">
+                        Width="268">
               <Grid HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Button x:Name="FooterMuteButton"
                         Grid.Column="0"
@@ -1399,7 +1400,7 @@
                 <Slider x:Name="FooterVolumeSlider"
                         Grid.Column="1"
                         Minimum="0"
-                        Maximum="100"
+                        Maximum="200"
                         SmallChange="1"
                         LargeChange="10"
                         Value="80"
@@ -1410,7 +1411,17 @@
                         PreviewMouseLeftButtonDown="FooterVolume_PreviewMouseDown"
                         PreviewMouseLeftButtonUp="FooterVolume_PreviewMouseUp"
                         LostMouseCapture="FooterVolume_LostMouseCapture"
-                        ToolTip="Volume"/>
+                        ToolTip="Volume (100% = normal, up to 200% boost)"/>
+                <TextBlock x:Name="FooterVolumeLabel"
+                           Grid.Column="2"
+                           Text="80%"
+                           Foreground="{StaticResource Brush.TextDim}"
+                           FontFamily="{StaticResource Font.Mono}"
+                           FontSize="10.5"
+                           VerticalAlignment="Center"
+                           MinWidth="38"
+                           TextAlignment="Right"
+                           Margin="6,0,0,0"/>
               </Grid>
               <Grid Margin="0,2,0,0"
                     HorizontalAlignment="Stretch">

@@ -315,12 +315,13 @@ public partial class SettingsPanel : UserControl
 
     private void InitializeFooter()
     {
-        var v = Math.Clamp(App.Player.Volume, 0, 100);
+        var v = Math.Clamp(App.Player.Volume, 0, AudioPlayer.MaxVolume);
         if (v > 0) _lastNonZeroVolume = v;
 
         _suppressVolumeChanged = true;
         FooterVolumeSlider.Value = v;
         _suppressVolumeChanged = false;
+        UpdateFooterVolumeLabel(v);
 
         // Always show/apply normal speed on launch (speed is not restored across sessions).
         App.Player.SetRate(1f);
@@ -800,7 +801,7 @@ public partial class SettingsPanel : UserControl
         }
 
         var v = (int)Math.Round(e.NewValue);
-        v = Math.Clamp(v, 0, 100);
+        v = Math.Clamp(v, 0, AudioPlayer.MaxVolume);
         if (v > 0) _lastNonZeroVolume = v;
 
         App.Player.Volume = v;
@@ -810,7 +811,14 @@ public partial class SettingsPanel : UserControl
             App.Settings.ScheduleSave();
         }
 
+        UpdateFooterVolumeLabel(v);
         UpdateFooterVolumeIcon();
+    }
+
+    private void UpdateFooterVolumeLabel(int volumePercent)
+    {
+        if (FooterVolumeLabel is null) return;
+        FooterVolumeLabel.Text = $"{volumePercent}%";
     }
 
     private void FooterSpeed_PreviewMouseDown(object sender, MouseButtonEventArgs e)

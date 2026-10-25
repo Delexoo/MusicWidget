@@ -1168,15 +1168,15 @@ public sealed class DownloadService
         psi.ArgumentList.Add("--format");
         psi.ArgumentList.Add("mp3");
         psi.ArgumentList.Add("--bitrate");
-        psi.ArgumentList.Add("128k");
+        psi.ArgumentList.Add("320k");
         psi.ArgumentList.Add("--threads");
         psi.ArgumentList.Add("4");
         // spotDL defaults can request "bestaudio" alone; YouTube often only exposes
         // combined streams for some clients → "Requested format is not available".
-        // Force our tools yt-dlp + a permissive format (overrides spotDL's brittle selector).
+        // Force our tools yt-dlp + best audio + V0 encode (overrides spotDL's brittle selector).
         psi.ArgumentList.Add("--yt-dlp-args");
         psi.ArgumentList.Add(
-            $"-f bestaudio/best/bestaudio*/best* --ignore-config --extractor-retries 3 --ffmpeg-location \"{_tools.FfmpegPath}\"");
+            $"-f bestaudio/best/bestaudio*/best* --audio-quality 0 --ignore-config --extractor-retries 3 --ffmpeg-location \"{_tools.FfmpegPath}\"");
         AppendSpotDlCookiesArgs(psi);
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
