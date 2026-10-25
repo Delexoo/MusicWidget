@@ -18,4 +18,4 @@ By installing MusicWidget you agree that:
 
 See also Legal\terms.txt and Legal\privacy.txt after installation.
 
-Contact: https://delexo.store | https://github.com/Delexoo/beats
+Contact: https://delexo.store | https://github.com/Delexoo/MusicWidget

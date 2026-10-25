@@ -4,7 +4,7 @@
 
 | Version | Supported |
 | ------- | --------- |
-| Latest release on [GitHub Releases](https://github.com/Delexoo/beats/releases/latest) | Yes |
+| Latest release on [GitHub Releases](https://github.com/Delexoo/MusicWidget/releases/latest) | Yes |
 | Older releases | Best effort |
 
 ## Reporting a vulnerability
@@ -22,6 +22,6 @@ We aim to acknowledge reports within **72 hours** and will work with you on a fi
 
 ## Scope
 
-This policy covers the Windows Beats desktop application, its installer, and the official project website hosted at [delexoo.github.io/beats](https://delexoo.github.io/beats/).
+This policy covers the MusicWidget desktop application, its installer, and the official project website hosted at [delexoo.github.io/MusicWidget](https://delexoo.github.io/MusicWidget/).
 
 Third-party tools bundled at runtime (yt-dlp, ffmpeg, spotDL, LibVLC) should be reported to their respective projects unless the issue is specific to how Windows Beats invokes them.

@@ -2,6 +2,13 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.22] - 2026-10-25
+
+### Changed
+- Installer default path is now `Program Files\MusicWidget` (no Delexo subfolder)
+- GitHub repository renamed from `beats` to `MusicWidget`
+- Project site and links now use `delexoo.github.io/MusicWidget` and `github.com/Delexoo/MusicWidget`
+
 ## [2.2.21] - 2026-10-25
 
 ### Added
@@ -71,4 +78,4 @@ All notable changes to **MusicWidget** are documented here. The format is based 
 
 ## [2.2.17] and earlier
 
-See [GitHub Releases](https://github.com/Delexoo/beats/releases) for prior version notes.
+See [GitHub Releases](https://github.com/Delexoo/MusicWidget/releases) for prior version notes.

@@ -7,24 +7,24 @@ Play local playlists, download tracks from the web, and control everything from 
 
 <sub>MusicWidget is an independent product by Delexo. It is not affiliated with Microsoft Corporation.</sub>
 
-[![Latest release](https://img.shields.io/github/v/release/Delexoo/beats?label=release&sort=semver&color=2563eb)](https://github.com/Delexoo/beats/releases/latest)
-[![Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows&logoColor=white)](https://github.com/Delexoo/beats/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Delexoo/MusicWidget?label=release&sort=semver&color=2563eb)](https://github.com/Delexoo/MusicWidget/releases/latest)
+[![Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows&logoColor=white)](https://github.com/Delexoo/MusicWidget/releases/latest)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512bd4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/8.0)
-[![License](https://img.shields.io/github/license/Delexoo/beats)](LICENSE)
-[![Website](https://img.shields.io/badge/website-delexoo.github.io%2Fbeats-111111?style=flat-square)](https://delexoo.github.io/beats/)
-[![GitHub stars](https://img.shields.io/github/stars/Delexoo/beats?style=social)](https://github.com/Delexoo/beats/stargazers)
+[![License](https://img.shields.io/github/license/Delexoo/MusicWidget)](LICENSE)
+[![Website](https://img.shields.io/badge/website-delexoo.github.io%2FMusicWidget-111111?style=flat-square)](https://delexoo.github.io/MusicWidget/)
+[![GitHub stars](https://img.shields.io/github/stars/Delexoo/MusicWidget?style=social)](https://github.com/Delexoo/MusicWidget/stargazers)
 
 <br />
 
-[**Download for Windows**](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)
+[**Download for Windows**](https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe)
 &nbsp;|&nbsp;
-[**Help &amp; manual**](https://delexoo.github.io/beats/help.html)
+[**Help &amp; manual**](https://delexoo.github.io/MusicWidget/help.html)
 &nbsp;|&nbsp;
-[**Website**](https://delexoo.github.io/beats/)
+[**Website**](https://delexoo.github.io/MusicWidget/)
 &nbsp;|&nbsp;
-[**Releases**](https://github.com/Delexoo/beats/releases)
+[**Releases**](https://github.com/Delexoo/MusicWidget/releases)
 &nbsp;|&nbsp;
-[**Report an issue**](https://github.com/Delexoo/beats/issues)
+[**Report an issue**](https://github.com/Delexoo/MusicWidget/issues)
 
 <br />
 
@@ -73,7 +73,7 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## What's new
 
-**Latest: v2.2.21** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/beats/releases/latest)
+**Latest: v2.2.22** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
@@ -86,20 +86,20 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## Website
 
-The project site is hosted on **GitHub Pages** at **[delexoo.github.io/beats](https://delexoo.github.io/beats/)**.
+The project site is hosted on **GitHub Pages** at **[delexoo.github.io/MusicWidget](https://delexoo.github.io/MusicWidget/)**.
 
 <div align="center">
     
 <br />
 
-[**Open the website**](https://delexoo.github.io/beats/) | [**Help & manual**](https://delexoo.github.io/beats/help.html)
+[**Open the website**](https://delexoo.github.io/MusicWidget/) | [**Help & manual**](https://delexoo.github.io/MusicWidget/help.html)
 
 </div>
 
 | Page | URL | What you'll find |
 |---|---|---|
-| **Home** | [delexoo.github.io/beats](https://delexoo.github.io/beats/) | Download, features, how it works, interactive widget preview |
-| **Help** | [delexoo.github.io/beats/help.html](https://delexoo.github.io/beats/help.html) | Full user manual - setup, shortcuts, downloads, troubleshooting |
+| **Home** | [delexoo.github.io/MusicWidget](https://delexoo.github.io/MusicWidget/) | Download, features, how it works, interactive widget preview |
+| **Help** | [delexoo.github.io/MusicWidget/help.html](https://delexoo.github.io/MusicWidget/help.html) | Full user manual - setup, shortcuts, downloads, troubleshooting |
 
 The site lives in the [`website/`](website/) folder and deploys automatically when you push to `main` (see [Deploy the website](#deploy-the-website-github-pages) below).
 
@@ -107,7 +107,7 @@ The site lives in the [`website/`](website/) folder and deploys automatically wh
 
 ## Preview
 
-> **Live demo:** open the [project website](https://delexoo.github.io/beats/) for an interactive preview of the widget on a Windows 11 desktop.
+> **Live demo:** open the [project website](https://delexoo.github.io/MusicWidget/) for an interactive preview of the widget on a Windows 11 desktop.
 
 <!-- Add a screenshot once available, e.g.:
 ![Beats widget on desktop](docs/screenshot.png)
@@ -122,7 +122,7 @@ The site lives in the [`website/`](website/) folder and deploys automatically wh
 
 <br />
 
-1. **Download** the latest installer: [MusicWidget-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)
+1. **Download** the latest installer: [MusicWidget-Setup-x64.exe](https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe)
 2. **Run** the installer and launch MusicWidget from the Start menu.
 3. **Open the dashboard** - click the settings gear on the pill, or press `Ctrl` + `\`.
 4. **Create a playlist** - use **New Playlist** in the dashboard sidebar.
@@ -292,7 +292,7 @@ Spotify links always route through spotDL regardless of URL pattern.
 
 Download the latest release:
 
-**[MusicWidget-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)**
+**[MusicWidget-Setup-x64.exe](https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe)**
 
 The installer registers Beats in the Start menu and handles the .NET 8 Desktop Runtime dependency.
 
@@ -436,7 +436,7 @@ beats/
 **Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 
 ```powershell
-git clone https://github.com/Delexoo/beats.git
+git clone https://github.com/Delexoo/MusicWidget.git
 cd beats
 dotnet restore
 dotnet build -c Release
@@ -487,7 +487,7 @@ The landing page in `/website` deploys automatically on push to `main`.
 
 Manual setup (one-time): **Settings -> Pages -> Source:** Deploy from branch `main`, folder `/website`.
 
-Live URL: **[delexoo.github.io/beats](https://delexoo.github.io/beats/)**
+Live URL: **[delexoo.github.io/MusicWidget](https://delexoo.github.io/MusicWidget/)**
 
 </details>
 
@@ -529,7 +529,7 @@ The first Spotify download also bootstraps spotDL and its Deno dependency. Subse
 
 <br />
 
-Beats writes crash logs to `%APPDATA%\MusicWidget\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/beats/issues).
+Beats writes crash logs to `%APPDATA%\MusicWidget\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/MusicWidget/issues).
 
 </details>
 
@@ -593,6 +593,6 @@ Reliability patterns (URL cleanup, headers, embed fallbacks, and page metadata) 
 
 <br />
 
-**[Download MusicWidget](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)** | **[Website](https://delexoo.github.io/beats/)** | **[Help](https://delexoo.github.io/beats/help.html)** | **[Star on GitHub](https://github.com/Delexoo/beats)**
+**[Download MusicWidget](https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe)** | **[Website](https://delexoo.github.io/MusicWidget/)** | **[Help](https://delexoo.github.io/MusicWidget/help.html)** | **[Star on GitHub](https://github.com/Delexoo/MusicWidget)**
 
 </div>

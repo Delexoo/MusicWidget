@@ -112,5 +112,5 @@ an update constitutes acceptance of the revised Terms.
 11. CONTACT
 
   https://delexo.store
-  https://delexoo.github.io/beats/help.html
-  https://github.com/Delexoo/beats
+  https://delexoo.github.io/MusicWidget/help.html
+  https://github.com/Delexoo/MusicWidget

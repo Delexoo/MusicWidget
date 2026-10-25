@@ -3,7 +3,7 @@
 ; ============================================================================
 ;
 ; Builds a single .exe installer that drops the published, self-contained build
-; into C:\Program Files\Delexo\MusicWidget, adds Start Menu + Desktop shortcuts,
+; into C:\Program Files\MusicWidget, adds Start Menu + Desktop shortcuts,
 ; shows the MusicWidget License Agreement (license.rtf), and uses the app icon.
 ;
 ; Build (from repo root):
@@ -13,14 +13,14 @@
 ; ============================================================================
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.2.21"
+  #define MyAppVersion "2.2.22"
 #endif
 
 #define MyAppName "MusicWidget"
 #define MyAppPublisher "Delexo"
 #define MyAppStoreURL "https://delexo.store"
-#define MyAppHelpURL "https://delexoo.github.io/beats/help.html"
-#define MyAppUpdatesURL "https://github.com/Delexoo/beats/releases"
+#define MyAppHelpURL "https://delexoo.github.io/MusicWidget/help.html"
+#define MyAppUpdatesURL "https://github.com/Delexoo/MusicWidget/releases"
 #define MyAppExeName "MusicWidget.exe"
 
 [Setup]
@@ -35,7 +35,7 @@ AppSupportURL={#MyAppHelpURL}
 AppUpdatesURL={#MyAppUpdatesURL}
 AppContact={#MyAppStoreURL}
 AppComments=Published by {#MyAppPublisher}. Visit {#MyAppStoreURL} for support and more products.
-DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
+DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}

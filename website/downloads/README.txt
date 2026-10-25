@@ -10,6 +10,6 @@ after running Installer\Build-Installer.ps1 (the script copies it here automatic
 
 When the site is live on GitHub, the Download button uses the latest release:
 
-  https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe
+  https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe
 
-Repo: https://github.com/Delexoo/beats (owner: https://github.com/Delexoo)
+Repo: https://github.com/Delexoo/MusicWidget (owner: https://github.com/Delexoo)

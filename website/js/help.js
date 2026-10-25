@@ -1,6 +1,6 @@
 (function () {
   var ASSET = "MusicWidget-Setup-x64.exe";
-  var repo = (document.querySelector('meta[name="beats-repo"]') || {}).content || "Delexoo/beats";
+  var repo = (document.querySelector('meta[name="musicwidget-repo"]') || document.querySelector('meta[name="beats-repo"]') || {}).content || "Delexoo/MusicWidget";
   var dl = document.getElementById("download-link");
 
   function releaseDownloadUrl(version) {

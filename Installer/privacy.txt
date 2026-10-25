@@ -86,11 +86,11 @@ Uninstalling MusicWidget does not automatically delete your music or settings.
 We may update this Privacy Policy occasionally. The copy installed with
 MusicWidget is available at Legal\privacy.txt in your installation folder and
 may also be posted at:
-  https://delexoo.github.io/beats/privacy.html
+  https://delexoo.github.io/MusicWidget/privacy.html
 
 
 9. CONTACT
 
   https://delexo.store
-  https://delexoo.github.io/beats/help.html
-  https://github.com/Delexoo/beats
+  https://delexoo.github.io/MusicWidget/help.html
+  https://github.com/Delexoo/MusicWidget

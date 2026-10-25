@@ -21,7 +21,7 @@ downloaded or imported content.
 
 Need help?
   https://delexo.store
-  https://delexoo.github.io/beats/help.html
-  https://github.com/Delexoo/beats
+  https://delexoo.github.io/MusicWidget/help.html
+  https://github.com/Delexoo/MusicWidget
 
 Click Next to continue, or Cancel to exit.

@@ -16,13 +16,13 @@ public static class AppBranding
             return version is null ? "MusicWidget/0.0.0" : $"MusicWidget/{version.Major}.{version.Minor}.{version.Build}";
         }
     }
-    public const string HelpPageUrl = "https://delexoo.github.io/beats/help.html";
+    public const string HelpPageUrl = "https://delexoo.github.io/MusicWidget/help.html";
     public const string PublisherName = "Delexo";
     public const string StoreUrl = "https://delexo.store";
     public const string GitHubOwner = "Delexoo";
-    public const string GitHubRepo = "beats";
+    public const string GitHubRepo = "MusicWidget";
     public const string GitHubProfileUrl = "https://github.com/Delexoo";
-    public const string GitHubRepoUrl = "https://github.com/Delexoo/beats";
-    public const string GitHubReleasesUrl = "https://github.com/Delexoo/beats/releases";
-    public const string GitHubIssuesUrl = "https://github.com/Delexoo/beats/issues";
+    public const string GitHubRepoUrl = "https://github.com/Delexoo/MusicWidget";
+    public const string GitHubReleasesUrl = "https://github.com/Delexoo/MusicWidget/releases";
+    public const string GitHubIssuesUrl = "https://github.com/Delexoo/MusicWidget/issues";
 }
