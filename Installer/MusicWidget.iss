@@ -13,7 +13,7 @@
 ; ============================================================================
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.2.24"
+  #define MyAppVersion "2.2.25"
 #endif
 
 #define MyAppName "MusicWidget"

@@ -114,8 +114,8 @@
       <Setter Property="ItemContainerStyle">
         <Setter.Value>
           <Style TargetType="ListBoxItem">
-            <!-- Slightly lifted surface so playlist rows read as cards, not flat text. -->
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <!-- Quiet dark card; selection is only a slight lighten (no blue flash). -->
+            <Setter Property="Background" Value="#0AFFFFFF"/>
             <Setter Property="Foreground" Value="{StaticResource Brush.Text}"/>
             <Setter Property="Padding" Value="12,12"/>
             <Setter Property="FontSize" Value="16"/>
@@ -128,7 +128,7 @@
                 <ControlTemplate TargetType="ListBoxItem">
                   <Border x:Name="bg"
                           Background="{TemplateBinding Background}"
-                          BorderBrush="#28FFFFFF"
+                          BorderBrush="#14FFFFFF"
                           BorderThickness="1"
                           CornerRadius="10"
                           Padding="{TemplateBinding Padding}"
@@ -140,14 +140,22 @@
                   </Border>
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="bg" Property="Background" Value="#24FFFFFF"/>
-                      <Setter TargetName="bg" Property="BorderBrush" Value="#3AFFFFFF"/>
+                      <Setter TargetName="bg" Property="Background" Value="#10FFFFFF"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="#1CFFFFFF"/>
                     </Trigger>
                     <Trigger Property="IsSelected" Value="True">
-                      <Setter TargetName="bg" Property="Background" Value="#1A2563EB"/>
-                      <Setter TargetName="bg" Property="BorderBrush" Value="#402563EB"/>
+                      <Setter TargetName="bg" Property="Background" Value="#12FFFFFF"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="#1EFFFFFF"/>
                       <Setter Property="Foreground" Value="{StaticResource Brush.Text}"/>
                     </Trigger>
+                    <MultiTrigger>
+                      <MultiTrigger.Conditions>
+                        <Condition Property="IsSelected" Value="True"/>
+                        <Condition Property="IsMouseOver" Value="True"/>
+                      </MultiTrigger.Conditions>
+                      <Setter TargetName="bg" Property="Background" Value="#16FFFFFF"/>
+                      <Setter TargetName="bg" Property="BorderBrush" Value="#24FFFFFF"/>
+                    </MultiTrigger>
                     <DataTrigger Binding="{Binding}" Value="{x:Static models:PlaylistDivider.Instance}">
                       <Setter TargetName="bg" Property="Background" Value="Transparent"/>
                       <Setter TargetName="bg" Property="BorderBrush" Value="Transparent"/>
@@ -355,31 +363,29 @@
                 RenderOptions.BitmapScalingMode="HighQuality"
                 Margin="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomThickness}, ConverterParameter='0,0,10,0'}">
           <Grid>
-            <!-- Placeholder when no cover is available (white + dark music icon) -->
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-              <StackPanel.Style>
-                <Style TargetType="StackPanel">
+            <!-- Placeholder when no cover is available (white + black music note) -->
+            <Path Data="{StaticResource Icon.Music}"
+                  Fill="Black"
+                  Stretch="Uniform"
+                  Width="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
+                  Height="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+              <Path.Style>
+                <Style TargetType="Path">
                   <Style.Triggers>
                     <DataTrigger Binding="{Binding HasArtwork}" Value="True">
                       <Setter Property="Visibility" Value="Collapsed"/>
                     </DataTrigger>
                   </Style.Triggers>
                 </Style>
-              </StackPanel.Style>
-              <Path Data="{StaticResource Icon.Music}"
-                    Fill="Black"
-                    Stretch="Uniform"
-                    Width="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
-                    Height="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
-                    HorizontalAlignment="Center"/>
-            </StackPanel>
-            <!-- Visibility must live in the Style (not a local value) so DataTriggers can override it. -->
-            <Image Source="{Binding ArtworkSource, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
-                   Stretch="UniformToFill"
-                   RenderOptions.BitmapScalingMode="HighQuality">
-              <Image.Style>
-                <Style TargetType="Image">
+              </Path.Style>
+            </Path>
+            <!-- Center-cropped cover (ImageBrush centers better than Image+UniformToFill). -->
+            <Rectangle RadiusX="8" RadiusY="8"
+                       RenderOptions.BitmapScalingMode="HighQuality">
+              <Rectangle.Style>
+                <Style TargetType="Rectangle">
                   <Setter Property="Visibility" Value="Collapsed"/>
                   <Style.Triggers>
                     <DataTrigger Binding="{Binding HasArtwork}" Value="True">
@@ -387,8 +393,14 @@
                     </DataTrigger>
                   </Style.Triggers>
                 </Style>
-              </Image.Style>
-            </Image>
+              </Rectangle.Style>
+              <Rectangle.Fill>
+                <ImageBrush ImageSource="{Binding ArtworkSource, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
+                            Stretch="UniformToFill"
+                            AlignmentX="Center"
+                            AlignmentY="Center"/>
+              </Rectangle.Fill>
+            </Rectangle>
           </Grid>
         </Border>
         <StackPanel Grid.Column="1"
