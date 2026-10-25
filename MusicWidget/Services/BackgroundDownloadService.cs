@@ -12,6 +12,7 @@ public sealed class BackgroundDownloadProgressEventArgs : EventArgs
 {
     public required string PlaylistName { get; init; }
     public required DownloadProgressUpdate Update { get; init; }
+    public int QueueRemaining { get; init; }
 }
 
 public sealed class BackgroundDownloadCompletedEventArgs : EventArgs
@@ -21,16 +22,36 @@ public sealed class BackgroundDownloadCompletedEventArgs : EventArgs
     public bool Cancelled { get; init; }
     public string? Error { get; init; }
     public int DownloadedCount { get; init; }
+    /// <summary>True when another queued job will start next.</summary>
+    public bool HasMoreQueued { get; init; }
+    public int QueueRemaining { get; init; }
+}
+
+public sealed class BackgroundDownloadQueuedEventArgs : EventArgs
+{
+    public required string PlaylistName { get; init; }
+    public required string Url { get; init; }
+    public int QueuePosition { get; init; }
+    public int QueueRemaining { get; init; }
 }
 
 /// <summary>
 /// Runs paste-audio-link downloads outside the dialog so they continue after it closes.
+/// Multiple URLs are processed FIFO while earlier jobs are still running.
 /// </summary>
 public sealed class BackgroundDownloadService
 {
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly object _sync = new();
+    private readonly Queue<QueuedJob> _queue = new();
     private CancellationTokenSource? _cts;
     private double _peakPercent;
+    private bool _workerRunning;
+
+    private sealed class QueuedJob
+    {
+        public required Playlist Playlist { get; init; }
+        public required string Url { get; init; }
+    }
 
     /// <summary>
     /// Forwards progress on the caller thread — unlike <see cref="Progress{T}"/>, does not
@@ -43,17 +64,39 @@ public sealed class BackgroundDownloadService
         public void Report(T value) => _handler(value);
     }
 
-    public bool IsRunning { get; private set; }
+    public bool IsRunning
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _workerRunning || _queue.Count > 0;
+            }
+        }
+    }
+
     public string? ActivePlaylistName { get; private set; }
+
+    public int QueueCount
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _queue.Count;
+            }
+        }
+    }
 
     public event EventHandler<BackgroundDownloadProgressEventArgs>? ProgressChanged;
     public event EventHandler<BackgroundDownloadCompletedEventArgs>? Completed;
+    public event EventHandler<BackgroundDownloadQueuedEventArgs>? Queued;
 
     public void Cancel()
     {
-        if (!IsRunning)
+        lock (_sync)
         {
-            return;
+            _queue.Clear();
         }
 
         try
@@ -65,9 +108,22 @@ public sealed class BackgroundDownloadService
         }
     }
 
-    public bool TryStart(Playlist playlist, string url, out string? errorMessage)
+    /// <summary>
+    /// Starts a download immediately, or enqueues it if one is already running.
+    /// <paramref name="wasQueued"/> is true when another job is already in progress.
+    /// <paramref name="queueDepth"/> is how many jobs are waiting behind the active one
+    /// (including this one when queued).
+    /// </summary>
+    public bool TryStart(
+        Playlist playlist,
+        string url,
+        out string? errorMessage,
+        out bool wasQueued,
+        out int queueDepth)
     {
         errorMessage = null;
+        wasQueued = false;
+        queueDepth = 0;
         var trimmed = url?.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
         {
@@ -75,28 +131,90 @@ public sealed class BackgroundDownloadService
             return false;
         }
 
-        if (IsRunning)
+        bool startWorker;
+        int queuePosition;
+        int depth;
+        lock (_sync)
         {
-            errorMessage = "A download is already running.";
-            return false;
+            wasQueued = _workerRunning;
+            _queue.Enqueue(new QueuedJob { Playlist = playlist, Url = trimmed });
+            queuePosition = _queue.Count;
+            depth = wasQueued ? _queue.Count : 0;
+            queueDepth = depth;
+            startWorker = !_workerRunning;
+            if (startWorker)
+            {
+                _workerRunning = true;
+            }
         }
 
-        if (!_gate.Wait(0))
+        var queuedPlaylist = playlist.Name;
+        var queuedUrl = trimmed;
+        UiDispatcher.BeginInvokeSafe(() =>
         {
-            errorMessage = "A download is already running.";
-            return false;
+            Queued?.Invoke(this, new BackgroundDownloadQueuedEventArgs
+            {
+                PlaylistName = queuedPlaylist,
+                Url = queuedUrl,
+                QueuePosition = queuePosition,
+                QueueRemaining = depth,
+            });
+        });
+
+        if (startWorker)
+        {
+            _ = ProcessQueueAsync();
         }
 
-        _cts = new CancellationTokenSource();
-        IsRunning = true;
-        ActivePlaylistName = playlist.Name;
-        _peakPercent = 0;
-        _ = RunAsync(playlist, trimmed, _cts.Token);
         return true;
     }
 
-    private async Task RunAsync(Playlist playlist, string url, CancellationToken ct)
+    /// <summary>Convenience overload when queue metadata is not needed.</summary>
+    public bool TryStart(Playlist playlist, string url, out string? errorMessage) =>
+        TryStart(playlist, url, out errorMessage, out _, out _);
+
+    private async Task ProcessQueueAsync()
     {
+        try
+        {
+            while (true)
+            {
+                QueuedJob? job;
+                lock (_sync)
+                {
+                    if (_queue.Count == 0)
+                    {
+                        _workerRunning = false;
+                        ActivePlaylistName = null;
+                        return;
+                    }
+
+                    job = _queue.Dequeue();
+                }
+
+                await RunJobAsync(job).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "BackgroundDownloadService.ProcessQueueAsync");
+            lock (_sync)
+            {
+                _workerRunning = false;
+                ActivePlaylistName = null;
+            }
+        }
+    }
+
+    private async Task RunJobAsync(QueuedJob job)
+    {
+        var playlist = job.Playlist;
+        var url = job.Url;
+        ActivePlaylistName = playlist.Name;
+        _peakPercent = 0;
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
         var dest = App.Playlists.EnsurePlaylistFolder(playlist.Name);
         var existingFiles = Directory.Exists(dest)
             ? new HashSet<string>(Directory.EnumerateFiles(dest), StringComparer.OrdinalIgnoreCase)
@@ -193,9 +311,11 @@ public sealed class BackgroundDownloadService
             {
             }
 
-            IsRunning = false;
-            ActivePlaylistName = null;
-            _gate.Release();
+            int remaining;
+            lock (_sync)
+            {
+                remaining = _queue.Count;
+            }
 
             UiDispatcher.BeginInvokeSafe(() =>
             {
@@ -206,6 +326,8 @@ public sealed class BackgroundDownloadService
                     Cancelled = cancelled,
                     Error = error,
                     DownloadedCount = downloadedCount,
+                    HasMoreQueued = remaining > 0,
+                    QueueRemaining = remaining,
                 });
             });
 
@@ -235,20 +357,18 @@ public sealed class BackgroundDownloadService
             }
         }
 
+        var remaining = QueueCount;
         UiDispatcher.BeginInvokeSafe(() =>
         {
             ProgressChanged?.Invoke(this, new BackgroundDownloadProgressEventArgs
             {
                 PlaylistName = playlistName,
                 Update = update,
+                QueueRemaining = remaining,
             });
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    /// <summary>
-    /// Watches the playlist folder for new audio files while yt-dlp runs so the dashboard
-    /// updates even when post-processor log lines are missed.
-    /// </summary>
     private static async Task PollDestinationFolderAsync(
         string destFolder,
         string playlistName,

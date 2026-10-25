@@ -14,6 +14,12 @@ public sealed class AppSettings
 
     public int Volume { get; set; } = 80;
 
+    /// <summary>
+    /// Current-session playback rate (0.5–2.0). Always reset to 1.0 on launch;
+    /// not restored from disk.
+    /// </summary>
+    public double PlaybackSpeed { get; set; } = 1.0;
+
     public bool LoopCurrent { get; set; } = false;
 
     public bool Shuffle { get; set; } = false;

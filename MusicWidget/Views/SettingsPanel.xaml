@@ -116,9 +116,9 @@
           <Style TargetType="ListBoxItem">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource Brush.Text}"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Padding" Value="12,12"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Margin" Value="0,3"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Top"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="PlaylistListItem_PreviewMouseLeftButtonDown"/>
@@ -130,7 +130,10 @@
                           BorderBrush="Transparent"
                           BorderThickness="0"
                           CornerRadius="10"
-                          Padding="{TemplateBinding Padding}">
+                          Padding="{TemplateBinding Padding}"
+                          UseLayoutRounding="False"
+                          SnapsToDevicePixels="False"
+                          RenderOptions.EdgeMode="Unspecified">
                     <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                   </Border>
@@ -336,6 +339,10 @@
                 CornerRadius="8"
                 Background="#FF1A1F27"
                 ClipToBounds="True"
+                UseLayoutRounding="False"
+                SnapsToDevicePixels="False"
+                RenderOptions.EdgeMode="Unspecified"
+                RenderOptions.BitmapScalingMode="HighQuality"
                 Margin="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomThickness}, ConverterParameter='0,0,10,0'}">
           <Grid>
             <!-- Placeholder when no cover is available -->
@@ -357,12 +364,13 @@
                     Height="{Binding TracksZoom, ElementName=SettingsPanelRoot, Converter={StaticResource ZoomMultiply}, ConverterParameter=16}"
                     HorizontalAlignment="Center"/>
             </StackPanel>
+            <!-- Visibility must live in the Style (not a local value) so DataTriggers can override it. -->
             <Image Source="{Binding ArtworkSource, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                    Stretch="UniformToFill"
-                   RenderOptions.BitmapScalingMode="HighQuality"
-                   Visibility="Collapsed">
+                   RenderOptions.BitmapScalingMode="HighQuality">
               <Image.Style>
                 <Style TargetType="Image">
+                  <Setter Property="Visibility" Value="Collapsed"/>
                   <Style.Triggers>
                     <DataTrigger Binding="{Binding HasArtwork}" Value="True">
                       <Setter Property="Visibility" Value="Visible"/>
@@ -446,6 +454,25 @@
               </MenuItem.Icon>
             </MenuItem>
             <Separator/>
+            <MenuItem Header="Change icon…"
+                      Click="PlaylistContextChangeIcon_Click">
+              <MenuItem.Icon>
+                <Path Data="{StaticResource Icon.Edit}"
+                      Fill="{StaticResource Brush.Text}"
+                      Stretch="Uniform"
+                      Width="12" Height="12"/>
+              </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Remove icon"
+                      Click="PlaylistContextRemoveIcon_Click">
+              <MenuItem.Icon>
+                <Path Data="{StaticResource Icon.Trash}"
+                      Fill="#FFEF4444"
+                      Stretch="Uniform"
+                      Width="12" Height="12"/>
+              </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
             <MenuItem Header="Add files…"
                       Click="PlaylistContextAddFiles_Click">
               <MenuItem.Icon>
@@ -509,7 +536,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid Grid.Row="0"
-              MinHeight="36">
+              MinHeight="52">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
@@ -523,9 +550,10 @@
           <Button Grid.Column="0"
                   Panel.ZIndex="1"
                   Style="{StaticResource PlaylistRowIconButtonStyle}"
+                  Width="32" Height="32"
                   Click="PlaylistPlayButton_Click"
                   Tag="{Binding}"
-                  Margin="0,0,4,0">
+                  Margin="0,0,8,0">
           <Button.ToolTip>
             <ToolTip>
               <TextBlock>
@@ -549,7 +577,7 @@
               </TextBlock>
             </ToolTip>
           </Button.ToolTip>
-          <Path Stretch="Uniform" Width="12" Height="12">
+          <Path Stretch="Uniform" Width="14" Height="14">
             <Path.Style>
               <Style TargetType="Path" BasedOn="{StaticResource PlaylistRowIconPathStyle}">
                 <Setter Property="Data" Value="{StaticResource Icon.Play}"/>
@@ -563,75 +591,135 @@
           </Path>
         </Button>
 
-        <!-- Pinned badge: heart for Liked, download for Saves, pin for user-pinned normals. -->
-        <Path Grid.Column="1"
-              Panel.ZIndex="1"
-              x:Name="PinnedBadge"
-              Stretch="Uniform"
-              Width="12" Height="12"
-              Margin="0,0,6,0"
-              HorizontalAlignment="Left"
-              VerticalAlignment="Center"
-              IsHitTestVisible="False"
-              Visibility="Collapsed">
-          <Path.Style>
-            <Style TargetType="Path">
-              <Setter Property="Fill" Value="{StaticResource Brush.Blue}"/>
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Kind}" Value="Liked">
-                  <Setter Property="Fill" Value="#FFEF4444"/>
-                  <Setter Property="Data" Value="{StaticResource Icon.Heart}"/>
-                  <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Saves">
-                  <Setter Property="Fill" Value="{StaticResource Brush.Blue}"/>
-                  <Setter Property="Data" Value="{StaticResource Icon.Download}"/>
-                  <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <MultiDataTrigger>
-                  <MultiDataTrigger.Conditions>
-                    <Condition Binding="{Binding Kind}" Value="Normal"/>
-                    <Condition Binding="{Binding IsPinned}" Value="True"/>
-                  </MultiDataTrigger.Conditions>
-                  <Setter Property="Fill" Value="{StaticResource Brush.Blue}"/>
-                  <Setter Property="Data" Value="{StaticResource Icon.Pin}"/>
-                  <Setter Property="Visibility" Value="Visible"/>
-                </MultiDataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Path.Style>
-        </Path>
+        <!-- Playlist icon (click to set a custom image) -->
+        <Button Grid.Column="1"
+                Panel.ZIndex="1"
+                Width="44" Height="44"
+                Margin="0,0,12,0"
+                Padding="0"
+                BorderThickness="0"
+                Cursor="Hand"
+                Click="PlaylistIconButton_Click"
+                Tag="{Binding}"
+                ToolTip="Change playlist icon">
+          <Button.Template>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="iconChrome"
+                      Width="44" Height="44"
+                      CornerRadius="10"
+                      Background="#FF1A1F27"
+                      ClipToBounds="True"
+                      UseLayoutRounding="False"
+                      SnapsToDevicePixels="False"
+                      RenderOptions.EdgeMode="Unspecified"
+                      RenderOptions.BitmapScalingMode="HighQuality">
+                <Grid>
+                  <Path Data="{StaticResource Icon.Music}"
+                        Fill="#FF64748B"
+                        Stretch="Uniform"
+                        Width="18" Height="18"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Path.Style>
+                      <Style TargetType="Path">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding HasCustomIcon}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Kind}" Value="Liked">
+                            <Setter Property="Data" Value="{StaticResource Icon.Heart}"/>
+                            <Setter Property="Fill" Value="#FFEF4444"/>
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding Kind}" Value="Saves">
+                            <Setter Property="Data" Value="{StaticResource Icon.Download}"/>
+                            <Setter Property="Fill" Value="{StaticResource Brush.Blue}"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Path.Style>
+                  </Path>
+                  <Image Source="{Binding IconSource}"
+                         Stretch="UniformToFill"
+                         RenderOptions.BitmapScalingMode="HighQuality">
+                    <Image.Style>
+                      <Style TargetType="Image">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding HasCustomIcon}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Image.Style>
+                  </Image>
+                  <!-- Small pin badge overlay for user-pinned normals -->
+                  <Border Width="14" Height="14"
+                          CornerRadius="7"
+                          Background="#FF2563EB"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Top"
+                          Margin="0,2,2,0"
+                          Visibility="Collapsed">
+                    <Border.Style>
+                      <Style TargetType="Border">
+                        <Style.Triggers>
+                          <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                              <Condition Binding="{Binding Kind}" Value="Normal"/>
+                              <Condition Binding="{Binding IsPinned}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Visibility" Value="Visible"/>
+                          </MultiDataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+                    <Path Data="{StaticResource Icon.Pin}"
+                          Fill="White"
+                          Stretch="Uniform"
+                          Width="8" Height="8"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+                  </Border>
+                </Grid>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="iconChrome" Property="Opacity" Value="0.88"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Button.Template>
+        </Button>
 
         <StackPanel Grid.Column="2"
                     Panel.ZIndex="1"
-                    Orientation="Horizontal"
+                    Orientation="Vertical"
                     VerticalAlignment="Center"
-                    HorizontalAlignment="Stretch"
+                    HorizontalAlignment="Left"
                     Margin="0,0,8,0"
                     IsHitTestVisible="False">
           <TextBlock Text="{Binding Name}"
+                     HorizontalAlignment="Left"
+                     TextAlignment="Left"
                      VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis"
-                     MaxWidth="240"
                      IsHitTestVisible="False">
             <TextBlock.Style>
               <Style TargetType="TextBlock">
-                <Setter Property="FontWeight" Value="Medium"/>
-                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="16"/>
                 <Style.Triggers>
-                  <DataTrigger Binding="{Binding IsPinned}" Value="True">
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                  </DataTrigger>
                   <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
-                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
                   </DataTrigger>
                 </Style.Triggers>
               </Style>
             </TextBlock.Style>
           </TextBlock>
-          <TextBlock VerticalAlignment="Center"
-                     Margin="8,0,0,0"
-                     FontSize="12"
+          <TextBlock Margin="0,2,0,0"
+                     HorizontalAlignment="Left"
+                     TextAlignment="Left"
+                     FontSize="12.5"
                      Foreground="{StaticResource Brush.TextMuted}"
                      IsHitTestVisible="False">
             <TextBlock.Text>
@@ -697,7 +785,7 @@
         </Grid>
 
         <Border Grid.Row="1"
-                Margin="28,6,2,2"
+                Margin="52,8,2,2"
                 Background="Transparent"
                 BorderThickness="0"
                 Padding="0,0,0,4">
@@ -869,7 +957,7 @@
             </Button>
             <Button Style="{StaticResource DashboardToolbarButton}"
                     Margin="6,0,0,0"
-                    ToolTip="Close Windows Beats"
+                    ToolTip="Close MusicWidget"
                     Click="ExitApp_Click">
               <Path Data="{StaticResource Icon.Close}"
                     Fill="{StaticResource Brush.TextDim}"
@@ -1169,41 +1257,80 @@
               </Button>
             </StackPanel>
 
-            <!-- Right: volume + progress -->
+            <!-- Right: volume + speed + progress -->
             <StackPanel Grid.Column="2"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Right"
-                        MinWidth="220">
-              <StackPanel Orientation="Horizontal"
-                          HorizontalAlignment="Right">
+                        Width="248">
+              <Grid HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <Button x:Name="FooterMuteButton"
+                        Grid.Column="0"
                         Style="{StaticResource PlaylistRowIconButtonStyle}"
-                        Width="28" Height="28"
-                        Margin="0,0,6,0"
+                        Width="26" Height="26"
+                        Margin="0,0,4,0"
                         Click="FooterMute_Click"
                         ToolTip="Mute / unmute">
                   <Path x:Name="FooterVolumeIcon"
                         Data="{StaticResource Icon.Volume}"
                         Fill="{StaticResource Brush.TextDim}"
                         Stretch="Uniform"
-                        Width="15" Height="15"/>
+                        Width="13" Height="13"/>
                 </Button>
                 <Slider x:Name="FooterVolumeSlider"
-                        Width="120"
+                        Grid.Column="1"
                         Minimum="0"
                         Maximum="100"
                         SmallChange="1"
                         LargeChange="10"
                         Value="80"
+                        Height="24"
                         VerticalAlignment="Center"
-                        IsMoveToPointEnabled="True"
                         ValueChanged="FooterVolume_ValueChanged"
                         ToolTip="Volume"/>
-              </StackPanel>
-              <Grid Margin="0,6,0,0"
-                    HorizontalAlignment="Stretch"
-                    MinWidth="220"
-                    Width="240">
+              </Grid>
+              <Grid Margin="0,2,0,0"
+                    HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Speed"
+                           Foreground="{StaticResource Brush.TextDim}"
+                           FontSize="10.5"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"/>
+                <Slider x:Name="FooterSpeedSlider"
+                        Grid.Column="1"
+                        Minimum="0.5"
+                        Maximum="2.0"
+                        SmallChange="0.05"
+                        LargeChange="0.25"
+                        TickFrequency="0.25"
+                        IsSnapToTickEnabled="False"
+                        Value="1.0"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        ValueChanged="FooterSpeed_ValueChanged"
+                        ToolTip="Playback speed"/>
+                <TextBlock x:Name="FooterSpeedLabel"
+                           Grid.Column="2"
+                           Text="1.0x"
+                           Foreground="{StaticResource Brush.TextDim}"
+                           FontFamily="{StaticResource Font.Mono}"
+                           FontSize="10.5"
+                           VerticalAlignment="Center"
+                           MinWidth="34"
+                           TextAlignment="Right"
+                           Margin="6,0,0,0"/>
+              </Grid>
+              <Grid Margin="0,2,0,0"
+                    HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
@@ -1214,16 +1341,17 @@
                            Text="0:00"
                            Foreground="{StaticResource Brush.TextDim}"
                            FontFamily="{StaticResource Font.Mono}"
-                           FontSize="11.5"
+                           FontSize="10.5"
                            VerticalAlignment="Center"
-                           Margin="0,0,8,0"/>
+                           MinWidth="34"
+                           Margin="0,0,6,0"/>
                 <Slider x:Name="FooterProgressSlider"
                         Grid.Column="1"
                         Minimum="0"
                         Maximum="1"
                         Value="0"
+                        Height="24"
                         VerticalAlignment="Center"
-                        IsMoveToPointEnabled="True"
                         ValueChanged="FooterProgress_ValueChanged"
                         ToolTip="Seek"/>
                 <TextBlock x:Name="FooterDurationLabel"
@@ -1231,9 +1359,11 @@
                            Text="0:00"
                            Foreground="{StaticResource Brush.TextDim}"
                            FontFamily="{StaticResource Font.Mono}"
-                           FontSize="11.5"
+                           FontSize="10.5"
                            VerticalAlignment="Center"
-                           Margin="8,0,0,0"/>
+                           MinWidth="34"
+                           TextAlignment="Right"
+                           Margin="6,0,0,0"/>
               </Grid>
             </StackPanel>
           </Grid>
@@ -1883,7 +2013,7 @@
                          FontWeight="SemiBold"
                          FontSize="17"
                          TextWrapping="Wrap"/>
-              <TextBlock Text="Export a Netscape-format cookies.txt while logged into YouTube or Instagram (browser extension recommended; see yt-dlp wiki below). Windows Beats passes it to yt-dlp and spotDL on every download."
+              <TextBlock Text="Export a Netscape-format cookies.txt while logged into YouTube or Instagram (browser extension recommended; see yt-dlp wiki below). MusicWidget passes it to yt-dlp and spotDL on every download."
                          Foreground="{StaticResource Brush.TextDim}"
                          FontSize="13"
                          Margin="0,8,0,16"

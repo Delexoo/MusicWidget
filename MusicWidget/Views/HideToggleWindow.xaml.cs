@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using MusicWidget.Services;
 
 namespace MusicWidget.Views;
 
@@ -44,7 +45,11 @@ public partial class HideToggleWindow : Window
     private void AnchorToScreenTopCenter()
     {
         UpdateLayout();
-        var workArea = SystemParameters.WorkArea;
+        // Prefer the monitor hosting the widget so the chevron matches where the
+        // user is looking on multi-monitor / different-DPI setups.
+        var workArea = _widget is { IsLoaded: true }
+            ? DisplayBounds.GetWorkAreaForWindow(_widget)
+            : DisplayBounds.GetWorkAreaForWindow(this);
         var tabWidth = ActualWidth > 0 ? ActualWidth : (Width > 0 ? Width : 40);
         if (double.IsNaN(tabWidth) || tabWidth <= 0) tabWidth = 40;
         Left = workArea.Left + (workArea.Width - tabWidth) / 2.0;

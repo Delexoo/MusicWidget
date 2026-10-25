@@ -20,6 +20,7 @@ public sealed class AudioPlayer : IDisposable
     private Media? _loadedMedia;
     private bool _loopCurrent;
     private bool _shuffle;
+    private float _rate = 1f;
     private bool _disposed;
     private long _resumeMsAfterUserPause = -1;
     private int _trackEndAdvanceScheduled;
@@ -45,6 +46,13 @@ public sealed class AudioPlayer : IDisposable
     {
         get => _player.Volume;
         set => _player.Volume = Math.Clamp(value, 0, 100);
+    }
+
+    /// <summary>Playback speed multiplier (0.5–2.0). 1.0 is normal.</summary>
+    public float Rate
+    {
+        get => _rate;
+        set => SetRate(value);
     }
 
     public AudioPlayer()
@@ -74,6 +82,32 @@ public sealed class AudioPlayer : IDisposable
         _loopCurrent = App.Settings.Current.LoopCurrent;
         _shuffle = App.Settings.Current.Shuffle;
         _player.Volume = App.Settings.Current.Volume;
+        // Speed is session-only — always launch at normal (1.0x).
+        SetRate(1f);
+        App.Settings.Current.PlaybackSpeed = 1.0;
+    }
+
+    public void SetRate(float rate)
+    {
+        var clamped = Math.Clamp(rate, 0.5f, 2.0f);
+        // Snap near 1.0 so "normal" is easy to hit on the slider.
+        if (Math.Abs(clamped - 1f) < 0.03f)
+        {
+            clamped = 1f;
+        }
+
+        _rate = clamped;
+        try
+        {
+            if (!_disposed)
+            {
+                _player.SetRate(clamped);
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "AudioPlayer.SetRate");
+        }
     }
 
     public void SetQueue(IEnumerable<Track> tracks, int startIndex = 0)
@@ -171,6 +205,16 @@ public sealed class AudioPlayer : IDisposable
                 _loadedMedia.Dispose();
                 _loadedMedia = null;
                 return;
+            }
+
+            // LibVLC can reset rate when switching media — re-apply after Play.
+            try
+            {
+                _player.SetRate(_rate);
+            }
+            catch
+            {
+                /* rate re-apply is best-effort */
             }
 
             if (resumePositionMs >= 0)

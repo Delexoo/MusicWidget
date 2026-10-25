@@ -300,13 +300,13 @@ public sealed class DownloadService
             || blob.Contains("failed to decrypt", StringComparison.OrdinalIgnoreCase))
         {
             return HasYoutubeCookies()
-                ? "YouTube blocked this download and Windows Beats could not refresh cookies from your browser. Re-export cookies.txt in Dashboard → Download cookies, wait a few minutes, and try again."
-                : $"Windows Beats could not read login cookies from {BrowserCookieSourcesLabel} (Windows blocked decryption). Export a cookies.txt file in Dashboard → Download cookies, then try again.";
+                ? "YouTube blocked this download and MusicWidget could not refresh cookies from your browser. Re-export cookies.txt in Dashboard → Download cookies, wait a few minutes, and try again."
+                : $"MusicWidget could not read login cookies from {BrowserCookieSourcesLabel} (Windows blocked decryption). Export a cookies.txt file in Dashboard → Download cookies, then try again.";
         }
 
         return HasYoutubeCookies()
             ? $"YouTube blocked or rate-limited this download. Confirm the link is public or unlisted, stay signed into YouTube in {BrowserCookieSourcesLabel}, wait a few minutes, and try again."
-            : $"YouTube blocked this download. Sign into YouTube in {BrowserCookieSourcesLabel} on this PC and try again — Windows Beats reads that login automatically. You can also add a cookies.txt file under Download cookies in the dashboard.";
+            : $"YouTube blocked this download. Sign into YouTube in {BrowserCookieSourcesLabel} on this PC and try again — MusicWidget reads that login automatically. You can also add a cookies.txt file under Download cookies in the dashboard.";
     }
 
     private async Task<DownloadResult> DownloadInstagramAsync(

@@ -1,23 +1,23 @@
-Welcome to Windows Beats
+Welcome to MusicWidget
 
 Publisher: Delexo
 Website:  https://delexo.store
 
-This installer will set up Windows Beats on your PC, a floating desktop music player
-for Windows 10 and 11.
+This installer will set up MusicWidget on your PC — a free floating desktop
+music player for Windows 10 and 11.
 
 What you get:
   • A minimal always-on-top widget for playback controls
-  • Folder-based playlists under My Music\Beats
+  • Folder-based playlists under My Music\MusicWidget
   • Optional download from links you paste (YouTube, Spotify, and more)
 
-No account is required. Windows Beats runs locally on your machine.
+No account is required. MusicWidget runs locally on your machine.
 
-Before you continue, you will be asked to read and accept our Terms of
-Service and Privacy Policy. By installing Windows Beats, you confirm that Delexo
-created the software only. Windows Beats is not affiliated with Microsoft
-Corporation. We are not affiliated with any music platform, and you are
-responsible for how you use downloaded or imported content.
+Before you continue, you will be asked to read and accept the MusicWidget
+License Agreement. By installing, you confirm that Delexo created the software
+only. MusicWidget is not affiliated with Microsoft Corporation. We are not
+affiliated with any music platform, and you are responsible for how you use
+downloaded or imported content.
 
 Need help?
   https://delexo.store

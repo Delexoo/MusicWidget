@@ -30,7 +30,7 @@
 
   function updateAria() {
     var t = tracks[currentIndex];
-    beatsPill.setAttribute("aria-label", "Windows Beats player - " + t.title + " by " + t.artist);
+    beatsPill.setAttribute("aria-label", "MusicWidget player - " + t.title + " by " + t.artist);
   }
 
   function cycleTrack() {

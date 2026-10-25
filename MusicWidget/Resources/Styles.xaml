@@ -637,27 +637,30 @@
   <Style TargetType="Slider">
     <Setter Property="Background" Value="{StaticResource Brush.SurfaceHigh}"/>
     <Setter Property="Foreground" Value="{StaticResource Brush.Blue}"/>
-    <Setter Property="MinHeight" Value="20"/>
+    <Setter Property="MinHeight" Value="24"/>
     <Setter Property="Focusable" Value="False"/>
     <Setter Property="IsTabStop" Value="False"/>
+    <Setter Property="IsMoveToPointEnabled" Value="True"/>
     <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
-          <Grid VerticalAlignment="Center" Background="Transparent">
-            <Border Height="4"
-                    CornerRadius="2"
+          <!-- Tall transparent hit strip so the thin track is easy to grab. -->
+          <Grid Height="24" VerticalAlignment="Center" Background="Transparent">
+            <Border Height="5"
+                    CornerRadius="2.5"
                     Background="{TemplateBinding Background}"
                     VerticalAlignment="Center"
+                    Margin="6,0"
                     SnapsToDevicePixels="True"/>
-            <Track x:Name="PART_Track">
+            <Track x:Name="PART_Track" Margin="6,0">
               <Track.DecreaseRepeatButton>
                 <RepeatButton Command="Slider.DecreaseLarge"
                               Focusable="False" IsTabStop="False">
                   <RepeatButton.Template>
                     <ControlTemplate TargetType="RepeatButton">
-                      <Border Height="4"
-                              CornerRadius="2"
+                      <Border Height="5"
+                              CornerRadius="2.5"
                               Background="{StaticResource Brush.Blue}"
                               VerticalAlignment="Center"
                               SnapsToDevicePixels="True"/>
@@ -670,7 +673,7 @@
                               Focusable="False" IsTabStop="False">
                   <RepeatButton.Template>
                     <ControlTemplate TargetType="RepeatButton">
-                      <Border Background="Transparent"/>
+                      <Border Background="Transparent" Height="24"/>
                     </ControlTemplate>
                   </RepeatButton.Template>
                 </RepeatButton>
@@ -679,23 +682,24 @@
                 <Thumb Focusable="False" IsTabStop="False">
                   <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
-                      <Grid>
-                        <Ellipse x:Name="hit" Width="20" Height="20" Fill="Transparent"/>
+                      <Grid Width="22" Height="22" Background="Transparent">
                         <Ellipse x:Name="dot"
-                                 Width="12" Height="12"
+                                 Width="13" Height="13"
                                  Fill="White"
                                  Stroke="{StaticResource Brush.Blue}"
-                                 StrokeThickness="2"/>
+                                 StrokeThickness="2"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"/>
                       </Grid>
                       <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                          <Setter TargetName="dot" Property="Width" Value="14"/>
-                          <Setter TargetName="dot" Property="Height" Value="14"/>
+                          <Setter TargetName="dot" Property="Width" Value="15"/>
+                          <Setter TargetName="dot" Property="Height" Value="15"/>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
                           <Setter TargetName="dot" Property="Fill" Value="{StaticResource Brush.Blue}"/>
-                          <Setter TargetName="dot" Property="Width" Value="14"/>
-                          <Setter TargetName="dot" Property="Height" Value="14"/>
+                          <Setter TargetName="dot" Property="Width" Value="15"/>
+                          <Setter TargetName="dot" Property="Height" Value="15"/>
                         </Trigger>
                       </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -745,9 +749,12 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="14"/>
     <Setter Property="Padding" Value="8,8,8,8"/>
-    <Setter Property="SnapsToDevicePixels" Value="True"/>
-    <Setter Property="UseLayoutRounding" Value="True"/>
+    <!-- Off: snapping fights anti-aliased CornerRadius under the window scale. -->
+    <Setter Property="SnapsToDevicePixels" Value="False"/>
+    <Setter Property="UseLayoutRounding" Value="False"/>
     <Setter Property="ClipToBounds" Value="True"/>
+    <Setter Property="RenderOptions.EdgeMode" Value="Unspecified"/>
+    <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
   </Style>
 
   <!-- White circular transport buttons (black icons) -->

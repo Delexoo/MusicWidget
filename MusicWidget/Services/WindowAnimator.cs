@@ -29,11 +29,13 @@ public static class WindowAnimator
             return;
         }
 
-        var screen = SystemParameters.WorkArea;
         var width = window.ActualWidth > 0 ? window.ActualWidth : window.Width;
         var height = window.ActualHeight > 0 ? window.ActualHeight : window.Height;
         if (double.IsNaN(width) || width <= 0) width = 380;
         if (double.IsNaN(height) || height <= 0) height = 80;
+
+        // Use the monitor the widget is actually on (not always primary).
+        var screen = DisplayBounds.GetWorkAreaForWindow(window);
 
         _hidden[window] = new HiddenState
         {
@@ -129,7 +131,10 @@ public static class WindowAnimator
         // Place offscreen first based on current Left/Top, then animate back.
         window.Visibility = Visibility.Visible;
 
-        var screen = SystemParameters.WorkArea;
+        // Prefer the monitor where the widget was parked before hide.
+        var screen = DisplayBounds.GetWorkAreaNearPointDip(
+            new Point(state.Left + state.Width / 2, state.Top + state.Height / 2),
+            window);
         // Stop any in-flight animations so we can set Left/Top directly.
         window.BeginAnimation(Window.LeftProperty, null);
         window.BeginAnimation(Window.TopProperty, null);

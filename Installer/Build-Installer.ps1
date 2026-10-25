@@ -50,7 +50,7 @@ Write-Host "==> Regenerating AppIcon.ico from PNG..." -ForegroundColor Cyan
 & (Join-Path $scriptDir "Build-Icon.ps1")
 
 if (-not $SkipPublish) {
-    Write-Host "`n==> Publishing Beats ($Configuration, win-x64, self-contained)..." -ForegroundColor Cyan
+    Write-Host "`n==> Publishing MusicWidget ($Configuration, win-x64, self-contained)..." -ForegroundColor Cyan
     $proj = Join-Path $RepoRoot "MusicWidget\MusicWidget.csproj"
     $pubProfile = "Properties\PublishProfiles\WinX64SelfContained.pubxml"
 
@@ -77,7 +77,7 @@ Write-Host "    Version: $appVersion" -ForegroundColor DarkGray
 & $iscc "/DMyAppVersion=$appVersion" $iss
 if ($LASTEXITCODE -ne 0) { throw "iscc failed (exit $LASTEXITCODE)." }
 
-$out = Join-Path $scriptDir "Output\Beats-Setup-x64.exe"
+$out = Join-Path $scriptDir "Output\MusicWidget-Setup-x64.exe"
 if (Test-Path $out) {
     $sizeMb = [math]::Round((Get-Item $out).Length / 1MB, 1)
     Write-Host "`nInstaller built: $out ($sizeMb MB)" -ForegroundColor Green
@@ -86,13 +86,13 @@ if (Test-Path $out) {
     if (-not (Test-Path $webDownloads)) {
         New-Item -ItemType Directory -Path $webDownloads -Force | Out-Null
     }
-    $webOut = Join-Path $webDownloads "Beats-Setup-x64.exe"
+    $webOut = Join-Path $webDownloads "MusicWidget-Setup-x64.exe"
     Copy-Item $out $webOut -Force
-    Write-Host "Copied to website\downloads\Beats-Setup-x64.exe (local preview)" -ForegroundColor Green
+    Write-Host "Copied to website\downloads\MusicWidget-Setup-x64.exe (local preview)" -ForegroundColor Green
 
     $versionJson = Join-Path $RepoRoot "version.json"
     $webVersionJson = Join-Path $RepoRoot "website\version.json"
-    $payload = @{ version = $appVersion; asset = "Beats-Setup-x64.exe"; sizeMb = $sizeMb }
+    $payload = @{ version = $appVersion; asset = "MusicWidget-Setup-x64.exe"; sizeMb = $sizeMb }
     if (Test-Path $versionJson) {
         $payload | ConvertTo-Json | Set-Content -Path $versionJson -Encoding UTF8
         Write-Host "Updated version.json ($appVersion, ${sizeMb} MB)" -ForegroundColor Green

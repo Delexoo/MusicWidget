@@ -8,7 +8,7 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>Beats</AssemblyName>
+    <AssemblyName>MusicWidget</AssemblyName>
     <RootNamespace>MusicWidget</RootNamespace>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
@@ -23,14 +23,14 @@
 
     <!-- Version + author metadata is shown in Explorer's file properties and
          picked up by Inno Setup via the {#GetVersionString(...)} preprocessor. -->
-    <Version>2.2.20</Version>
-    <AssemblyVersion>2.2.20.0</AssemblyVersion>
-    <FileVersion>2.2.20.0</FileVersion>
-    <Product>Windows Beats</Product>
+    <Version>2.2.21</Version>
+    <AssemblyVersion>2.2.21.0</AssemblyVersion>
+    <FileVersion>2.2.21.0</FileVersion>
+    <Product>MusicWidget</Product>
     <Company>Delexo</Company>
     <Authors>Delexo</Authors>
-    <AssemblyTitle>Windows Beats</AssemblyTitle>
-    <Description>Windows Beats desktop music player, published by Delexo (delexo.store). Not affiliated with Microsoft.</Description>
+    <AssemblyTitle>MusicWidget</AssemblyTitle>
+    <Description>MusicWidget desktop music player, published by Delexo (delexo.store). Not affiliated with Microsoft.</Description>
     <Copyright>Copyright © Delexo 2026</Copyright>
     <RepositoryUrl>https://github.com/Delexoo/beats</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

@@ -1,7 +1,7 @@
 <Window x:Class="MusicWidget.Views.ModernMessageBox"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Windows Beats"
+        Title="MusicWidget"
         Icon="pack://application:,,,/Assets/AppIcon.ico"
         Width="400"
         MinWidth="320"

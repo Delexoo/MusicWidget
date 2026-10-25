@@ -1,11 +1,11 @@
 <div align="center">
 
-# Windows Beats
+# MusicWidget
 
 **A floating desktop music player for Windows.**  
 Play local playlists, download tracks from the web, and control everything from a minimal always-on-top widget.
 
-<sub>Windows Beats is an independent product by Delexo. It is not affiliated with Microsoft Corporation.</sub>
+<sub>MusicWidget is an independent product by Delexo. It is not affiliated with Microsoft Corporation.</sub>
 
 [![Latest release](https://img.shields.io/github/v/release/Delexoo/beats?label=release&sort=semver&color=2563eb)](https://github.com/Delexoo/beats/releases/latest)
 [![Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows&logoColor=white)](https://github.com/Delexoo/beats/releases/latest)
@@ -16,7 +16,7 @@ Play local playlists, download tracks from the web, and control everything from 
 
 <br />
 
-[**Download for Windows**](https://github.com/Delexoo/beats/releases/latest/download/Beats-Setup-x64.exe)
+[**Download for Windows**](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)
 &nbsp;|&nbsp;
 [**Help &amp; manual**](https://delexoo.github.io/beats/help.html)
 &nbsp;|&nbsp;
@@ -58,12 +58,12 @@ Play local playlists, download tracks from the web, and control everything from 
 
 ## Overview
 
-**Windows Beats** is a frameless, always-on-top desktop widget for Windows. It keeps your music one glance away while you work, game, or browse - without cluttering the taskbar.
+**MusicWidget** is a frameless, always-on-top desktop widget for Windows. It keeps your music one glance away while you work, game, or browse - without cluttering the taskbar.
 
 | | |
 |---|---|
-| **Local playback** | Folder-based playlists under `My Music\Beats` - portable, editable, and yours |
-| **Web downloads** | Paste a URL; Windows Beats saves MP3s into the playlist you choose |
+| **Local playback** | Folder-based playlists under `My Music\MusicWidget` - portable, editable, and yours |
+| **Web downloads** | Paste a URL; MusicWidget saves MP3s into the playlist you choose |
 | **Minimal UI** | A draggable pill with album art, transport controls, and an expandable dashboard |
 | **Stay out of the way** | Hide off-screen with `Alt` + `\` or the top-screen chevron; bring it back instantly |
 
@@ -73,7 +73,7 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## What's new
 
-**Latest: v2.2.18** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/beats/releases/latest)
+**Latest: v2.2.21** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/beats/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
@@ -122,13 +122,13 @@ The site lives in the [`website/`](website/) folder and deploys automatically wh
 
 <br />
 
-1. **Download** the latest installer: [Beats-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/Beats-Setup-x64.exe)
-2. **Run** the installer and launch Beats from the Start menu.
+1. **Download** the latest installer: [MusicWidget-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)
+2. **Run** the installer and launch MusicWidget from the Start menu.
 3. **Open the dashboard** - click the settings gear on the pill, or press `Ctrl` + `\`.
 4. **Create a playlist** - use **New Playlist** in the dashboard sidebar.
 5. **Add music** - drag files into a playlist folder, or paste a URL to download.
 
-On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) `spotDL` into `%APPDATA%\Beats\tools`. This is a one-time setup (~130 MB total).
+On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) `spotDL` into `%APPDATA%\MusicWidget\tools`. This is a one-time setup (~130 MB total).
 
 </details>
 
@@ -168,7 +168,7 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 
 <br />
 
-- **Folder-based playlists** - each playlist is a folder under your music root (default: `My Music\Beats`)
+- **Folder-based playlists** - each playlist is a folder under your music root (default: `My Music\MusicWidget`)
 - **Portable library** - copy, back up, or sync folders like any other files on disk
 - **Create | rename | delete** - full playlist management from the dashboard
 - **Add from disk** - import existing audio files into any playlist
@@ -208,7 +208,7 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 - **In-app updates** - check for new versions and install from the dashboard toolbar
 - **Configurable music root** - change where playlists are stored
 - **In-app help** - Quick start, YouTube cookies guide, and shortcuts reference
-- **Single instance** - only one Beats process runs at a time
+- **Single instance** - only one MusicWidget process runs at a time
 
 </details>
 
@@ -292,7 +292,7 @@ Spotify links always route through spotDL regardless of URL pattern.
 
 Download the latest release:
 
-**[Beats-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/Beats-Setup-x64.exe)**
+**[MusicWidget-Setup-x64.exe](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)**
 
 The installer registers Beats in the Start menu and handles the .NET 8 Desktop Runtime dependency.
 
@@ -303,7 +303,7 @@ The installer registers Beats in the Start menu and handles the .NET 8 Desktop R
 
 <br />
 
-On the first web download, Beats automatically downloads these tools into `%APPDATA%\Beats\tools`:
+On the first web download, Beats automatically downloads these tools into `%APPDATA%\MusicWidget\tools`:
 
 | Tool | Size (approx.) | Purpose |
 |---|---|---|
@@ -320,12 +320,12 @@ After the initial bootstrap, all downloads run locally with no additional setup.
 ## Where your data lives
 
 <details>
-<summary><strong>Application data</strong> - <code>%APPDATA%\Beats\</code></summary>
+<summary><strong>Application data</strong> - <code>%APPDATA%\MusicWidget\</code></summary>
 
 <br />
 
 ```
-%APPDATA%\Beats\
+%APPDATA%\MusicWidget\
 ├── settings.json           # Preferences, window layout, volume, etc.
 ├── liked-songs.json        # Liked Songs collection
 ├── saved-songs.json        # Saves collection
@@ -340,12 +340,12 @@ After the initial bootstrap, all downloads run locally with no additional setup.
 </details>
 
 <details>
-<summary><strong>Music library</strong> - default <code>%USERPROFILE%\Music\Beats\</code></summary>
+<summary><strong>Music library</strong> - default <code>%USERPROFILE%\Music\MusicWidget\</code></summary>
 
 <br />
 
 ```
-%USERPROFILE%\Music\Beats\     (configurable in settings)
+%USERPROFILE%\Music\MusicWidget\     (configurable in settings)
 ├── My Playlist\
 │   ├── Artist - Song.mp3
 │   └── ...
@@ -411,7 +411,7 @@ flowchart LR
 
 ```
 beats/
-├── MusicWidget/              # WPF application (AssemblyName: Beats)
+├── MusicWidget/              # WPF application (AssemblyName: MusicWidget)
 │   ├── Views/                # Widget, dashboard, dialogs
 │   ├── Services/             # Audio, downloads, playlists, hotkeys, updates
 │   ├── Models/               # Settings, tracks, playlists
@@ -456,7 +456,7 @@ dotnet run --project MusicWidget -c Release
 powershell -ExecutionPolicy Bypass -File Installer\Build-Installer.ps1
 ```
 
-Output: `Installer\Output\Beats-Setup-x64.exe`
+Output: `Installer\Output\MusicWidget-Setup-x64.exe`
 
 </details>
 
@@ -474,7 +474,7 @@ git push origin v2.2.0
 
 Or trigger manually: **Actions -> Release -> Run workflow**.
 
-Each release uploads `Beats-Setup-x64.exe` under a stable filename so the website and README download links always resolve to the latest build.
+Each release uploads `MusicWidget-Setup-x64.exe` under a stable filename so the website and README download links always resolve to the latest build.
 
 </details>
 
@@ -511,7 +511,7 @@ Beats also retries with multiple yt-dlp player clients automatically before givi
 
 <br />
 
-Another application may have registered the same key combo. Use the top chevron tab or on-screen buttons instead. Only one Beats instance can register hotkeys at a time.
+Another application may have registered the same key combo. Use the top chevron tab or on-screen buttons instead. only one MusicWidget instance can register hotkeys at a time.
 
 </details>
 
@@ -529,7 +529,7 @@ The first Spotify download also bootstraps spotDL and its Deno dependency. Subse
 
 <br />
 
-Beats writes crash logs to `%APPDATA%\Beats\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/beats/issues).
+Beats writes crash logs to `%APPDATA%\MusicWidget\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/beats/issues).
 
 </details>
 
@@ -593,6 +593,6 @@ Reliability patterns (URL cleanup, headers, embed fallbacks, and page metadata) 
 
 <br />
 
-**[Download Beats](https://github.com/Delexoo/beats/releases/latest/download/Beats-Setup-x64.exe)** | **[Website](https://delexoo.github.io/beats/)** | **[Help](https://delexoo.github.io/beats/help.html)** | **[Star on GitHub](https://github.com/Delexoo/beats)**
+**[Download MusicWidget](https://github.com/Delexoo/beats/releases/latest/download/MusicWidget-Setup-x64.exe)** | **[Website](https://delexoo.github.io/beats/)** | **[Help](https://delexoo.github.io/beats/help.html)** | **[Star on GitHub](https://github.com/Delexoo/beats)**
 
 </div>

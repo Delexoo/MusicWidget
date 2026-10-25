@@ -18,20 +18,14 @@
         TextOptions.TextRenderingMode="ClearType">
 
   <Window.Resources>
+    <!-- Crisp vector badges — avoid stretched low-res PNGs on high-DPI displays. -->
     <Style x:Key="PlatformBadge" TargetType="Border">
-      <Setter Property="Width" Value="32"/>
-      <Setter Property="Height" Value="32"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Margin" Value="0,0,7,0"/>
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="ClipToBounds" Value="True"/>
+      <Setter Property="Width" Value="34"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
       <Setter Property="SnapsToDevicePixels" Value="True"/>
       <Setter Property="UseLayoutRounding" Value="True"/>
-      <Setter Property="Clip">
-        <Setter.Value>
-          <RectangleGeometry RadiusX="8" RadiusY="8" Rect="0,0,32,32"/>
-        </Setter.Value>
-      </Setter>
     </Style>
   </Window.Resources>
 
@@ -73,47 +67,65 @@
       </Grid>
 
       <WrapPanel Margin="0,0,0,8">
-        <Border Style="{StaticResource PlatformBadge}" ToolTip="YouTube">
-          <Border.Background>
-            <ImageBrush ImageSource="/Assets/youtube.png"
-                        Stretch="UniformToFill"
-                        AlignmentX="Center"
-                        AlignmentY="Center"/>
-          </Border.Background>
+        <Border Style="{StaticResource PlatformBadge}"
+                Background="{StaticResource Brush.Brand.YouTube}"
+                ToolTip="YouTube">
+          <Path Data="{StaticResource Icon.Brand.YouTube}"
+                Fill="White"
+                Stretch="Uniform"
+                Width="16" Height="16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
         </Border>
-        <Border Style="{StaticResource PlatformBadge}" ToolTip="Spotify">
-          <Border.Background>
-            <ImageBrush ImageSource="/Assets/Spotify.png"
-                        Stretch="UniformToFill"
-                        AlignmentX="Center"
-                        AlignmentY="Center"/>
-          </Border.Background>
+        <Border Style="{StaticResource PlatformBadge}"
+                Background="{StaticResource Brush.Brand.Spotify}"
+                ToolTip="Spotify">
+          <Path Data="{StaticResource Icon.Brand.Spotify}"
+                Stroke="White"
+                StrokeThickness="1.6"
+                StrokeStartLineCap="Round"
+                StrokeEndLineCap="Round"
+                Fill="Transparent"
+                Stretch="Uniform"
+                Width="16" Height="16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
         </Border>
-        <Border Style="{StaticResource PlatformBadge}" ToolTip="Instagram">
-          <Border.Background>
-            <ImageBrush ImageSource="/Assets/instagram.jpg"
-                        Stretch="UniformToFill"
-                        AlignmentX="Center"
-                        AlignmentY="Center"/>
-          </Border.Background>
+        <Border Style="{StaticResource PlatformBadge}"
+                Background="{StaticResource Brush.Brand.Instagram}"
+                ToolTip="Instagram">
+          <Path Data="{StaticResource Icon.Brand.Instagram}"
+                Stroke="White"
+                StrokeThickness="1.5"
+                Fill="Transparent"
+                Stretch="Uniform"
+                Width="16" Height="16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
         </Border>
-        <Border Style="{StaticResource PlatformBadge}" ToolTip="TikTok">
-          <Border.Background>
-            <ImageBrush ImageSource="/Assets/tiktok.png"
-                        Stretch="UniformToFill"
-                        AlignmentX="Center"
-                        AlignmentY="Center"/>
-          </Border.Background>
+        <Border Style="{StaticResource PlatformBadge}"
+                Background="#FF111111"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1"
+                ToolTip="TikTok">
+          <Path Data="{StaticResource Icon.Brand.TikTok}"
+                Fill="White"
+                Stretch="Uniform"
+                Width="15" Height="15"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
         </Border>
         <Border Style="{StaticResource PlatformBadge}"
                 Background="{StaticResource Brush.SurfaceHigh}"
                 BorderBrush="{StaticResource Brush.Border}"
                 BorderThickness="1"
                 ToolTip="Twitter / X, Facebook, Reddit, and more">
-          <Viewbox Margin="7">
-            <Path Data="{StaticResource Icon.Apps}"
-                  Fill="{StaticResource Brush.TextDim}"/>
-          </Viewbox>
+          <Path Data="{StaticResource Icon.Apps}"
+                Fill="{StaticResource Brush.TextDim}"
+                Stretch="Uniform"
+                Width="15" Height="15"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
         </Border>
       </WrapPanel>
 
@@ -189,7 +201,7 @@
         <Run Text="YouTube blocked? " Foreground="{StaticResource Brush.TextDim}"/>
         <Hyperlink Click="YoutubeCookiesSetup_Click"
                    Foreground="{StaticResource Brush.Blue}">
-          Set up cookies in Windows Beats
+          Set up cookies in MusicWidget
         </Hyperlink>
       </TextBlock>
     </StackPanel>

@@ -1,6 +1,29 @@
 # Changelog
 
-All notable changes to **Windows Beats** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.2.21] - 2026-10-25
+
+### Added
+- Product renamed to **MusicWidget** (app, shortcuts, AppData, and installer)
+- Playback speed slider; always starts at 1.0x on launch
+- Custom playlist icons and larger playlist rows with left-aligned names
+- Download queue so new links wait while another download runs
+- Click-outside closes rename, paste-link, and other dialogs
+- MusicWidget License Agreement (RTF) in the installer, personalized for Delexo
+- Installer default path `Program Files\Delexo\MusicWidget`
+
+### Changed
+- Smoother volume, speed, and seek sliders
+- Crisp Paste-link brand icons
+- Rounded widget edges and cleaner library layout
+- Album covers from embedded tags plus online lookup when missing
+
+### Fixed
+- Startup crash on some machines
+- Widget expanding infinitely from the shadow layout loop
+- Resize jump when dragging the widget width
+- Multi-monitor and DPI centering for the floating pill
 
 ## [2.2.20] - 2026-10-08
 

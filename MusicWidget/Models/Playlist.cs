@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 
 namespace MusicWidget.Models;
 
@@ -21,11 +21,27 @@ public sealed class Playlist : INotifyPropertyChanged
     private bool _isActivePlaylist;
     private bool _isUserPinned;
     private bool _isExpanded;
+    private ImageSource? _iconSource;
 
     public string Name { get; }
     public string FolderPath { get; }
     public PlaylistKind Kind { get; }
     public string? IconKey { get; }
+
+    /// <summary>Optional user-chosen playlist cover/icon image.</summary>
+    public ImageSource? IconSource
+    {
+        get => _iconSource;
+        set
+        {
+            if (ReferenceEquals(_iconSource, value)) return;
+            _iconSource = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasCustomIcon));
+        }
+    }
+
+    public bool HasCustomIcon => _iconSource is not null;
 
     /// <summary>
     /// User-controlled pin flag for Normal playlists. Liked/Saves are always pinned

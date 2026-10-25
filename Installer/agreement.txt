@@ -1,187 +1,21 @@
-Windows Beats - TERMS OF SERVICE AND PRIVACY POLICY
+MusicWidget License Agreement
 Published by Delexo (https://delexo.store)
-Last updated: July 2026
+Effective date: 25 October 2026
 
-IMPORTANT: PLEASE READ CAREFULLY
+The full formatted License Agreement is shown during installation and is
+installed as Legal\License-Agreement.rtf.
 
-By selecting "I agree" in the installer, you confirm that you have read and
-accept both the Terms of Service (Part A) and the Privacy Policy (Part B)
-below.
+By installing MusicWidget you agree that:
 
-Delexo created the Windows Beats application only. Windows Beats is not
-affiliated with, endorsed by, or associated with Microsoft Corporation.
-We are not affiliated with YouTube, Spotify, TikTok, SoundCloud, or any
-other music platform. We are not responsible for any music, audio, or other
-content you play, store, or download using Windows Beats. You are solely
-responsible for complying with copyright law and the terms of any service
-you use.
+  • Delexo created MusicWidget only — a free local desktop music player.
+  • MusicWidget is not affiliated with Microsoft, YouTube, Spotify, or any
+    other platform, artist, or label.
+  • You are solely responsible for all music and content you play, import,
+    or download with MusicWidget.
+  • Download features use third-party tools (yt-dlp, spotDL) at your own risk.
+  • The software is provided "AS IS" under the MIT License for the application
+    source code.
 
+See also Legal\terms.txt and Legal\privacy.txt after installation.
 
-================================================================================
-PART A - TERMS OF SERVICE
-================================================================================
-
-1. WHO WE ARE
-
-Windows Beats is developed and published by Delexo ("we", "us", "our"). We created
-the Windows Beats desktop application only. We do not operate, own, or control any
-music platform, streaming service, or third-party website from which you
-may choose to download content.
-
-
-2. WHAT Windows Beats IS
-
-Windows Beats is a local desktop music player for Windows. It plays audio files stored
-on your computer and, if you choose to use that feature, can help you save
-audio from URLs you paste using third-party command-line tools (such as
-yt-dlp and spotDL) that are downloaded separately on first use.
-
-We provide software. We do not provide music, playlists, hosting, or any
-online content library.
-
-
-3. YOUR RESPONSIBILITY FOR CONTENT
-
-You are solely responsible for:
-
-  • All music, audio, and other files you play, store, import, or download
-    using Windows Beats;
-  • Ensuring you have the legal right to access, copy, and keep that content;
-  • Complying with copyright law, platform terms of service, and any other
-    applicable laws in your country or region.
-
-We are not responsible for any content you add to Windows Beats, whether you copied
-it from your own files, a link you pasted, or any other source. We do not
-review, monitor, or approve your files or downloads.
-
-
-4. NO AFFILIATION WITH THIRD PARTIES
-
-Windows Beats is not affiliated with, endorsed by, or sponsored by YouTube, Google,
-Spotify, TikTok, SoundCloud, Instagram, Apple, Microsoft, or any other
-company, artist, label, or platform.
-
-Any trademarks, service marks, or brand names belong to their respective
-owners. References to third-party services in Windows Beats or its documentation
-are for identification only.
-
-
-5. DOWNLOAD FEATURE DISCLAIMER
-
-If you use Windows Beats to download audio from the web:
-
-  • You do so at your own risk and on your own initiative;
-  • You must respect the terms and policies of each website or service;
-  • We do not guarantee that any particular URL, track, or playlist can be
-    downloaded successfully;
-  • We are not liable for failed downloads, removed content, account
-    restrictions, or actions taken by third-party platforms.
-
-Windows Beats integrates with open-source tools maintained by other projects. We do
-not control those tools and are not responsible for their behavior or updates.
-
-
-6. PROHIBITED USES
-
-You agree not to use Windows Beats to:
-
-  • Infringe copyright or other intellectual property rights;
-  • Circumvent DRM or access controls where doing so is unlawful;
-  • Distribute malware or harmful material;
-  • Violate any applicable law or third-party terms.
-
-
-7. DISCLAIMER OF WARRANTIES
-
-Windows Beats IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND,
-WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
-
-
-8. LIMITATION OF LIABILITY
-
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, DELEXO AND ITS CONTRIBUTORS SHALL NOT
-BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE
-DAMAGES, OR ANY LOSS OF DATA, PROFITS, OR GOODWILL, ARISING FROM YOUR USE OF
-Windows Beats OR ANY CONTENT OBTAINED THROUGH IT.
-
-OUR TOTAL LIABILITY FOR ANY CLAIM RELATING TO Windows Beats SHALL NOT EXCEED THE
-AMOUNT YOU PAID FOR THE SOFTWARE (IF ANY). Windows Beats IS OFFERED FREE OF CHARGE.
-
-
-9. SOFTWARE LICENSE
-
-The Windows Beats application source code is licensed under the MIT License. A copy
-is included in the installation folder under Legal\.
-
-
-10. CHANGES
-
-We may update these Terms from time to time. Continued use of Windows Beats after an
-update constitutes acceptance of the revised Terms.
-
-
-11. CONTACT
-
-  https://github.com/Delexoo/beats
-  https://delexoo.github.io/beats/help.html
-  https://delexo.store
-
-
-================================================================================
-PART B - PRIVACY POLICY
-================================================================================
-
-1. SUMMARY
-
-Windows Beats is a local-first application. It runs on your PC and keeps your music
-on your disk. We do not operate a Windows Beats account system, cloud library, or
-analytics service tied to your identity.
-
-
-2. INFORMATION STORED ON YOUR DEVICE
-
-Windows Beats may store the following on your computer:
-
-  • Application settings in %APPDATA%\Beats\settings.json
-  • Liked songs and saved collections as local JSON files
-  • Playlist folders under your Music directory
-  • Cached album artwork in %APPDATA%\Beats\artwork\
-  • Download tools in %APPDATA%\Beats\tools\
-  • Optional crash logs in %APPDATA%\Beats\
-
-We do not automatically upload this data to Delexo servers.
-
-
-3. INFORMATION WE DO NOT COLLECT
-
-We do not require your name, email, phone number, or payment information.
-The installer does not send us personal data when you download or install
-Windows Beats.
-
-
-4. NETWORK ACTIVITY
-
-Windows Beats may connect to the internet when you download audio, fetch artwork,
-update third-party tools, or open help links. Those requests go from your PC
-to the relevant services. We do not receive the contents of your downloads.
-
-
-5. THIRD-PARTY SERVICES
-
-Windows Beats is not affiliated with YouTube, Spotify, TikTok, SoundCloud, or any
-other platform. Third-party tools may process data according to their own
-policies.
-
-
-6. DATA DELETION
-
-You can delete Windows Beats data at any time from %APPDATA%\Beats\ and your music
-folders. Uninstalling Windows Beats does not automatically delete your music.
-
-
-7. CONTACT
-
-  https://github.com/Delexoo/beats
-  https://delexoo.github.io/beats/help.html
-  https://delexo.store
+Contact: https://delexo.store | https://github.com/Delexoo/beats

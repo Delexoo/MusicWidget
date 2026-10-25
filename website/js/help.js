@@ -1,5 +1,5 @@
 (function () {
-  var ASSET = "Beats-Setup-x64.exe";
+  var ASSET = "MusicWidget-Setup-x64.exe";
   var repo = (document.querySelector('meta[name="beats-repo"]') || {}).content || "Delexoo/beats";
   var dl = document.getElementById("download-link");
 

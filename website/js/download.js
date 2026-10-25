@@ -1,5 +1,5 @@
 (function () {
-  const ASSET = "Beats-Setup-x64.exe";
+  const ASSET = "MusicWidget-Setup-x64.exe";
   const repoMeta = document.querySelector('meta[name="beats-repo"]');
   const repo = repoMeta && repoMeta.content && !repoMeta.content.includes("YOUR_USERNAME")
     ? repoMeta.content.trim()

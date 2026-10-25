@@ -22,6 +22,7 @@ public partial class EditTrackWindow : Window
     private string? _coverImagePath;
 
     public EditTrackResult? Result { get; private set; }
+    public bool Accepted { get; private set; }
 
     public EditTrackWindow(Track track)
     {
@@ -47,6 +48,15 @@ public partial class EditTrackWindow : Window
             TitleBox.Focus();
             TitleBox.SelectAll();
         };
+        KeyDown += OnWindowKeyDown;
+    }
+
+    private void OnWindowKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            Cancel_Click(sender, e);
+        }
     }
 
     private void ChooseCover_Click(object sender, RoutedEventArgs e)
@@ -59,7 +69,18 @@ public partial class EditTrackWindow : Window
             Multiselect = false,
         };
 
-        if (dlg.ShowDialog(this) != true)
+        DismissibleWindow.SetSuppressDismiss(this, true);
+        bool? picked;
+        try
+        {
+            picked = dlg.ShowDialog(this);
+        }
+        finally
+        {
+            DismissibleWindow.SetSuppressDismiss(this, false);
+        }
+
+        if (picked != true)
         {
             return;
         }
@@ -91,13 +112,13 @@ public partial class EditTrackWindow : Window
             Title = title,
             CoverImagePath = _coverImagePath,
         };
-        DialogResult = true;
+        Accepted = true;
         Close();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        DialogResult = false;
+        Accepted = false;
         Close();
     }
 

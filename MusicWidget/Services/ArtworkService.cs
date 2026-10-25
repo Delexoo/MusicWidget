@@ -224,10 +224,21 @@ public sealed class ArtworkService
             return null;
         }
 
+        var fromItunes = await TryFetchItunesAsync(query, ct).ConfigureAwait(false);
+        if (fromItunes is { Length: > 0 })
+        {
+            return fromItunes;
+        }
+
+        return await TryFetchDeezerAsync(query, title, artist, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]?> TryFetchItunesAsync(string query, CancellationToken ct)
+    {
         try
         {
             var url = "https://itunes.apple.com/search?term=" + Uri.EscapeDataString(query) +
-                      "&entity=song&limit=1";
+                      "&entity=song&limit=5";
             using var resp = await _http.GetAsync(url, ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
@@ -244,17 +255,93 @@ public sealed class ArtworkService
                 return null;
             }
 
-            var first = results[0];
-            if (!first.TryGetProperty("artworkUrl100", out var artProp))
+            foreach (var item in results.EnumerateArray())
+            {
+                if (!item.TryGetProperty("artworkUrl100", out var artProp))
+                {
+                    continue;
+                }
+
+                var artUrl = artProp.GetString();
+                if (string.IsNullOrEmpty(artUrl)) continue;
+
+                artUrl = artUrl
+                    .Replace("100x100bb", "600x600bb")
+                    .Replace("100x100", "600x600");
+                var bytes = await _http.GetByteArrayAsync(artUrl, ct).ConfigureAwait(false);
+                if (bytes is { Length: > 0 })
+                {
+                    return bytes;
+                }
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<byte[]?> TryFetchDeezerAsync(
+        string query, string? title, string? artist, CancellationToken ct)
+    {
+        try
+        {
+            // Prefer artist+title when available; otherwise use the combined query.
+            var term = !string.IsNullOrWhiteSpace(artist) && !string.IsNullOrWhiteSpace(title)
+                ? $"artist:\"{artist}\" track:\"{title}\""
+                : query;
+
+            var url = "https://api.deezer.com/search?q=" + Uri.EscapeDataString(term) + "&limit=5";
+            using var resp = await _http.GetAsync(url, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
             {
                 return null;
             }
 
-            var artUrl = artProp.GetString();
-            if (string.IsNullOrEmpty(artUrl)) return null;
+            await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
 
-            artUrl = artUrl.Replace("100x100bb", "300x300bb");
-            return await _http.GetByteArrayAsync(artUrl, ct).ConfigureAwait(false);
+            if (!doc.RootElement.TryGetProperty("data", out var data) ||
+                data.ValueKind != JsonValueKind.Array ||
+                data.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            foreach (var item in data.EnumerateArray())
+            {
+                if (!item.TryGetProperty("album", out var album) ||
+                    album.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                string? artUrl = null;
+                if (album.TryGetProperty("cover_xl", out var xl))
+                {
+                    artUrl = xl.GetString();
+                }
+                else if (album.TryGetProperty("cover_big", out var big))
+                {
+                    artUrl = big.GetString();
+                }
+                else if (album.TryGetProperty("cover_medium", out var med))
+                {
+                    artUrl = med.GetString();
+                }
+
+                if (string.IsNullOrEmpty(artUrl)) continue;
+
+                var bytes = await _http.GetByteArrayAsync(artUrl, ct).ConfigureAwait(false);
+                if (bytes is { Length: > 0 })
+                {
+                    return bytes;
+                }
+            }
+
+            return null;
         }
         catch
         {
@@ -370,18 +457,26 @@ public sealed class ArtworkService
             return null;
         }
 
-        TagLib.IPicture? best = null;
+        TagLib.IPicture? bestFront = null;
+        TagLib.IPicture? bestAny = null;
         foreach (var pic in pictures)
         {
-            if (pic.Type == TagLib.PictureType.FrontCover)
+            var data = pic.Data?.Data;
+            if (data is null || data.Length == 0)
             {
-                return pic.Data?.Data;
+                continue;
             }
 
-            best ??= pic;
+            if (pic.Type is TagLib.PictureType.FrontCover or TagLib.PictureType.Other)
+            {
+                bestFront ??= pic;
+            }
+
+            bestAny ??= pic;
         }
 
-        return best?.Data?.Data;
+        var chosen = bestFront ?? bestAny;
+        return chosen?.Data?.Data;
     }
 
     private static Task<ImageSource?> CreateFrozenBitmapOnUiAsync(byte[] bytes)
@@ -463,7 +558,7 @@ public sealed class ArtworkService
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            bmp.DecodePixelWidth = 120;
+            bmp.DecodePixelWidth = 300;
             bmp.StreamSource = stream;
             bmp.EndInit();
             bmp.Freeze();
@@ -484,7 +579,7 @@ public sealed class ArtworkService
             bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
             bmp.UriSource = new Uri(path, UriKind.Absolute);
-            bmp.DecodePixelWidth = 120;
+            bmp.DecodePixelWidth = 300;
             bmp.EndInit();
             bmp.Freeze();
             return bmp;

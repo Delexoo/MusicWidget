@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using MusicWidget.Services;
 
 namespace MusicWidget.Views;
 
@@ -60,17 +61,9 @@ public partial class ModernMessageBox : Window
         dlg.BuildButtons(kind);
 
         var picked = PickOwner(owner);
-        if (picked is not null && picked != dlg)
-        {
-            dlg.Owner = picked;
-            dlg.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        }
-        else
-        {
-            dlg.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        }
-
-        dlg.ShowDialog();
+        // Non-modal + click-outside dismiss so the widget stays interactive.
+        // Outside click / deactivate counts as Cancel / No.
+        DismissibleWindow.Show(dlg, picked, () => dlg._result == true);
         return dlg._result;
     }
 

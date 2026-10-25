@@ -40,7 +40,7 @@ public partial class App : Application
         {
             MigrateLegacyAppData();
 
-            const string mutexName = "Beats_SingleInstance_4F2A8B11";
+            const string mutexName = "MusicWidget_SingleInstance_4F2A8B11";
             _singleInstanceMutex = new Mutex(true, mutexName, out bool createdNew);
             if (!createdNew)
             {
@@ -100,7 +100,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            var logPath = Path.Combine(Path.GetTempPath(), "Beats-startup-error.txt");
+            var logPath = Path.Combine(Path.GetTempPath(), "MusicWidget-startup-error.txt");
             try
             {
                 File.WriteAllText(logPath, ex.ToString());
@@ -156,7 +156,7 @@ public partial class App : Application
         }
         catch
         {
-            // Best-effort: if move fails (e.g. partial lock), the app still starts fresh under Beats.
+            // Best-effort: if move fails (e.g. partial lock), the app still starts fresh under MusicWidget.
         }
     }
 

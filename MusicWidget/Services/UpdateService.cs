@@ -11,7 +11,7 @@ namespace MusicWidget.Services;
 
 public sealed class UpdateService
 {
-    public const string InstallerAssetName = "Beats-Setup-x64.exe";
+    public const string InstallerAssetName = "MusicWidget-Setup-x64.exe";
 
     private static readonly HttpClient Http = CreateClient();
     private static readonly HttpClient DownloadHttp = CreateDownloadClient();
@@ -179,7 +179,7 @@ public sealed class UpdateService
                 New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
                 Write-Log 'Downloading update...'
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -Headers @{ 'User-Agent' = 'WindowsBeats-Updater' }
+                Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -Headers @{ 'User-Agent' = 'MusicWidget-Updater' }
                 if (-not (Test-Path -LiteralPath $out) -or ((Get-Item -LiteralPath $out).Length -lt 1024)) {
                     throw 'Downloaded installer is missing or too small.'
                 }

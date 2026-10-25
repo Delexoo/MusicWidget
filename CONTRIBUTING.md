@@ -36,7 +36,7 @@ powershell -ExecutionPolicy Bypass -File Installer\Build-Installer.ps1
 
 ## Releases
 
-Tagged releases (`v*`) trigger GitHub Actions to build `Beats-Setup-x64.exe` and publish a GitHub Release. Version numbers live in `MusicWidget/MusicWidget.csproj` and `version.json`.
+Tagged releases (`v*`) trigger GitHub Actions to build `MusicWidget-Setup-x64.exe` and publish a GitHub Release. Version numbers live in `MusicWidget/MusicWidget.csproj` and `version.json`.
 
 ## Code of conduct
 

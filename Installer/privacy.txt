@@ -1,92 +1,96 @@
-Windows Beats - PRIVACY POLICY
-Last updated: July 2026
+MusicWidget - PRIVACY POLICY
+Published by Delexo (https://delexo.store)
+Effective date: 25 October 2026
+Version: 2026-10-25
 
-Delexo ("we", "us") respects your privacy. This policy explains what Windows Beats
+Delexo ("we", "us") respects your privacy. This policy explains what MusicWidget
 collects, stores, and does with information when you use the desktop app.
 
 
 1. SUMMARY
 
-Windows Beats is a local-first application. It runs on your PC and keeps your music
-on your disk. We do not operate a Windows Beats account system, cloud library, or
+MusicWidget is a local-first application. It runs on your PC and keeps your music
+on your disk. We do not operate a MusicWidget account system, cloud library, or
 analytics service tied to your identity.
 
 
 2. INFORMATION STORED ON YOUR DEVICE
 
-Windows Beats may store the following on your computer:
+MusicWidget may store the following on your computer:
 
   • Application settings (volume, window layout, preferences) in
-    %APPDATA%\Beats\settings.json
+    %APPDATA%\MusicWidget\settings.json
   • Liked songs and saved collections as local JSON files
   • Playlist folders you create under your Music directory
-  • Cached album artwork in %APPDATA%\Beats\artwork\
-  • Download tools (yt-dlp, ffmpeg, spotDL) in %APPDATA%\Beats\tools\
-  • Optional crash logs in %APPDATA%\Beats\ if the app encounters an error
+    (default: %USERPROFILE%\Music\MusicWidget\)
+  • Cached album artwork in %APPDATA%\MusicWidget\artwork\
+  • Download tools (yt-dlp, ffmpeg, spotDL) in %APPDATA%\MusicWidget\tools\
+  • Optional crash logs in %APPDATA%\MusicWidget\ if the app encounters an error
 
 We do not automatically upload this data to Delexo servers.
 
 
 3. INFORMATION WE DO NOT COLLECT
 
-When you use Windows Beats, we do not require:
+When you use MusicWidget, we do not require:
 
   • Your name, email address, or phone number;
-  • Payment information (Windows Beats is free);
-  • A Windows Beats login or registration.
+  • Payment information (MusicWidget is free);
+  • A MusicWidget login or registration.
 
 The installer does not send us personal data when you download or install
-Windows Beats from our website or GitHub.
+MusicWidget from our website or GitHub.
 
 
 4. NETWORK ACTIVITY
 
-Windows Beats may connect to the internet when you:
+MusicWidget may connect to the internet when you:
 
   • Download audio from a URL you provide;
   • Fetch album artwork or metadata for local files;
   • Download or update yt-dlp, ffmpeg, or spotDL on first use;
+  • Check for application updates;
   • Open help links in your browser to our website or GitHub.
 
 Those requests go directly from your PC to the relevant services (for example,
 YouTube or Spotify via third-party tools). We do not receive the contents of
 your downloads.
 
-If you configure a YouTube cookies file, it stays on your device and is used
-only by yt-dlp during downloads you initiate. We do not receive that file.
+If you configure a cookies file for downloads, it stays on your device and is
+used only by yt-dlp during downloads you initiate. We do not receive that file.
 
 
 5. THIRD-PARTY SERVICES
 
-Windows Beats is not affiliated with YouTube, Spotify, TikTok, SoundCloud, or any
-other platform. When you use the download feature, third-party tools and
-remote services may process URLs and network data according to their own
-policies. You are responsible for reviewing those policies.
+MusicWidget is not affiliated with YouTube, Spotify, TikTok, SoundCloud, or any
+other platform. When you use the download feature, third-party tools and remote
+services may process URLs and network data according to their own policies. You
+are responsible for reviewing those policies.
 
 
 6. CHILDREN
 
-Windows Beats is not directed at children under 13. We do not knowingly collect
+MusicWidget is not directed at children under 13. We do not knowingly collect
 personal information from children.
 
 
 7. DATA RETENTION AND DELETION
 
-All Windows Beats data lives on your machine. You can delete it at any time by
-removing folders under %APPDATA%\Beats\ and your playlist directories.
-Uninstalling Windows Beats does not automatically delete your music or settings.
+All MusicWidget data lives on your machine. You can delete it at any time by
+removing folders under %APPDATA%\MusicWidget\ and your playlist directories.
+Uninstalling MusicWidget does not automatically delete your music or settings.
 
 
 8. CHANGES TO THIS POLICY
 
-We may update this Privacy Policy occasionally. The copy installed with Windows Beats
-is available at Legal\privacy.txt in your installation folder and at
+We may update this Privacy Policy occasionally. The copy installed with
+MusicWidget is available at Legal\privacy.txt in your installation folder and
+may also be posted at:
   https://delexoo.github.io/beats/privacy.html
 
 
 9. CONTACT
 
-Privacy questions:
-  https://github.com/Delexoo/beats
-  https://delexoo.github.io/beats/help.html
   https://delexo.store
+  https://delexoo.github.io/beats/help.html
+  https://github.com/Delexoo/beats

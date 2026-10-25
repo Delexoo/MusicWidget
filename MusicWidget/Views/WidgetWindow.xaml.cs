@@ -39,6 +39,8 @@ public partial class WidgetWindow : Window
     private double _hoverAnimTargetWidth;
     private double _settingsTargetHeight = DefaultDashboardHeight;
     private bool _resizingDashboard;
+    private double _resizeStartLeft;
+    private double _resizeStartWidth;
     private HotkeyService? _hotkeys;
     private GlobalMediaKeyService? _mediaKeys;
 
@@ -57,7 +59,7 @@ public partial class WidgetWindow : Window
         InitializeComponent();
         Opacity = 0;
 
-        var workArea = SystemParameters.WorkArea;
+        var workArea = SystemParameters.WorkArea; // HWND not ready yet — primary is fine for first paint
         var estimatedPillWidth = DefaultPillWidthEstimate * UiScale;
         Left = workArea.Left + (workArea.Width - estimatedPillWidth) / 2.0;
         Top = workArea.Top + DefaultTopOffset;
@@ -88,6 +90,10 @@ public partial class WidgetWindow : Window
         };
         _hoverCollapseTimer.Tick += HoverCollapseTimer_Tick;
 
+        // Keep the widget usable after DPI / resolution / monitor changes.
+        DpiChanged += (_, _) => OnDisplayEnvironmentChanged();
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnSystemDisplaySettingsChanged;
+
         _hotkeys = new HotkeyService(this);
         _hotkeys.ToggleVisibilityPressed += OnToggleVisibilityHotkey;
         _hotkeys.ToggleSettingsPressed += OnToggleSettingsHotkey;
@@ -104,6 +110,52 @@ public partial class WidgetWindow : Window
                 CrashLog.Write(t.Exception.GetBaseException(), "WidgetWindow.EnsureToolsAsync");
             }
         }, TaskScheduler.Default);
+    }
+
+    private void OnSystemDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        UiDispatcher.BeginInvokeSafe(OnDisplayEnvironmentChanged);
+    }
+
+    private void OnDisplayEnvironmentChanged()
+    {
+        try
+        {
+            if (!IsLoaded || IsBeingDragged)
+            {
+                return;
+            }
+
+            ApplyDefaultDashboardSize();
+            if (!_userMovedWidget)
+            {
+                CenterPillOnScreen();
+            }
+            else
+            {
+                EnsureWidgetOnScreen();
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "WidgetWindow.OnDisplayEnvironmentChanged");
+        }
+    }
+
+    private void EnsureWidgetOnScreen()
+    {
+        var width = ActualWidth > 0 ? ActualWidth : DefaultPillWidthEstimate * UiScale;
+        var height = ActualHeight > 0 ? ActualHeight : 80;
+        if (!DisplayBounds.IsPositionOnAnyScreen(Left, Top, width, height))
+        {
+            CenterPillOnScreen();
+            return;
+        }
+
+        var workArea = DisplayBounds.GetWorkAreaForWindow(this);
+        var (left, top) = DisplayBounds.EnsureRectInWorkArea(Left, Top, width, height, workArea);
+        Left = left;
+        Top = top;
     }
 
     private void ScheduleStartupCentering()
@@ -138,13 +190,10 @@ public partial class WidgetWindow : Window
 
     private void WidgetWindow_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_resizingDashboard && !IsBeingDragged)
+        // During resize, DragDelta owns Left adjustments — SizeChanged must not
+        // also call PreservePillScreenX or the pill double-corrects and jitters.
+        if (_resizingDashboard)
         {
-            if (e.WidthChanged && _settingsExpanded)
-            {
-                SyncPillDuringDashboardResize();
-            }
-
             return;
         }
 
@@ -176,24 +225,27 @@ public partial class WidgetWindow : Window
         Opacity = 1;
     }
 
-    private static bool IsPositionOnScreen(double left, double top)
+    private bool IsPositionOnScreen(double left, double top)
     {
-        var workArea = SystemParameters.WorkArea;
-        const double minVisible = 48;
-        return left + minVisible > workArea.Left &&
-               left < workArea.Right &&
-               top + minVisible > workArea.Top &&
-               top < workArea.Bottom;
+        var width = ActualWidth > 0 ? ActualWidth : DefaultPillWidthEstimate * UiScale;
+        var height = ActualHeight > 0 ? ActualHeight : 80;
+        return DisplayBounds.IsPositionOnAnyScreen(left, top, width, height);
     }
 
     private void ApplyDefaultDashboardSize()
     {
-        var workArea = SystemParameters.WorkArea;
-        var maxW = Math.Max(MinDashboardWidth, workArea.Width - 40);
-        var maxH = Math.Max(MinDashboardHeight, workArea.Height - 80);
+        var workArea = IsLoaded
+            ? DisplayBounds.GetWorkAreaForWindow(this)
+            : SystemParameters.WorkArea;
+        var (w, h) = DisplayBounds.ClampDashboardSize(
+            workArea,
+            DefaultDashboardWidth,
+            DefaultDashboardHeight,
+            MinDashboardWidth,
+            MinDashboardHeight);
 
-        SettingsPanelControl.Width = Math.Clamp(DefaultDashboardWidth, MinDashboardWidth, maxW);
-        _settingsTargetHeight = Math.Clamp(DefaultDashboardHeight, MinDashboardHeight, maxH);
+        SettingsPanelControl.Width = w;
+        _settingsTargetHeight = h;
         UpdatePillDashboardAlignment();
     }
 
@@ -217,7 +269,7 @@ public partial class WidgetWindow : Window
                 return;
             }
 
-            var workArea = GetPrimaryWorkAreaDip();
+            var workArea = DisplayBounds.GetWorkAreaForWindow(this);
             var targetCenterX = workArea.Left + workArea.Width / 2.0;
             var currentCenterX = GetPillScreenCenterX();
             if (double.IsNaN(currentCenterX) || double.IsInfinity(currentCenterX))
@@ -227,6 +279,13 @@ public partial class WidgetWindow : Window
 
             Left += targetCenterX - currentCenterX;
             Top = workArea.Top + DefaultTopOffset;
+
+            // Final clamp so a DPI glitch can't park the pill off-screen.
+            var width = ActualWidth > 0 ? ActualWidth : DefaultPillWidthEstimate * UiScale;
+            var height = ActualHeight > 0 ? ActualHeight : 80;
+            var (safeLeft, safeTop) = DisplayBounds.EnsureRectInWorkArea(Left, Top, width, height, workArea);
+            Left = safeLeft;
+            Top = safeTop;
         }
         catch (Exception ex)
         {
@@ -235,8 +294,6 @@ public partial class WidgetWindow : Window
     }
 
     private void ApplyDefaultPosition() => CenterPillOnScreen();
-
-    private static Rect GetPrimaryWorkAreaDip() => SystemParameters.WorkArea;
 
     /// <summary>
     /// Horizontal center of the pill in DIP screen coordinates (same units as
@@ -400,8 +457,10 @@ public partial class WidgetWindow : Window
     }
 
     /// <summary>
-    /// Keeps the pill aligned over the dashboard while preserving its screen X during resize.
-    /// Layout must run before measuring pill/dashboard widths.
+    /// Keeps the pill visually centered over the dashboard during resize without
+    /// PointToScreen feedback loops (those caused the jitter).
+    /// When width grows from the left edge, shift <see cref="Window.Left"/> left by
+    /// half the delta so the screen-center of the pill stays put.
     /// </summary>
     private void SyncPillDuringDashboardResize()
     {
@@ -410,10 +469,17 @@ public partial class WidgetWindow : Window
             return;
         }
 
-        UpdateLayout();
         UpdatePillDashboardAlignment();
         UpdateLayout();
-        PreservePillScreenX(_pillCenterXBeforeResize);
+
+        var widthNow = ActualWidth;
+        if (widthNow <= 0 || _resizeStartWidth <= 0)
+        {
+            return;
+        }
+
+        // Stable width-delta math — no GetPillScreenCenterX / PointToScreen during drag.
+        Left = _resizeStartLeft - (widthNow - _resizeStartWidth) / 2.0;
     }
 
     private void CachePillBaseWidth()
@@ -469,7 +535,7 @@ public partial class WidgetWindow : Window
     private (double Left, double Top) ComputeDefaultPosition()
     {
         UpdateLayout();
-        var workArea = SystemParameters.WorkArea;
+        var workArea = DisplayBounds.GetWorkAreaForWindow(this);
         var top = workArea.Top + DefaultTopOffset;
         if (PillBorder.ActualWidth <= 0)
         {
@@ -478,7 +544,9 @@ public partial class WidgetWindow : Window
 
         var targetCenterX = workArea.Left + workArea.Width / 2.0;
         var left = Left + targetCenterX - GetPillScreenCenterX();
-        return (left, top);
+        var width = ActualWidth > 0 ? ActualWidth : DefaultPillWidthEstimate * UiScale;
+        var height = ActualHeight > 0 ? ActualHeight : 80;
+        return DisplayBounds.EnsureRectInWorkArea(left, top, width, height, workArea);
     }
 
     /// <summary>
@@ -542,6 +610,14 @@ public partial class WidgetWindow : Window
     {
         Deactivated -= WidgetWindow_Deactivated;
         PreviewMouseDown -= WidgetWindow_PreviewMouseDown;
+        try
+        {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnSystemDisplaySettingsChanged;
+        }
+        catch
+        {
+            // Unhook is best-effort during shutdown.
+        }
 
         App.Player.PlayStateChanged -= OnPlayStateChanged;
         App.Player.CurrentTrackChanged -= OnCurrentTrackChanged;
@@ -1139,6 +1215,9 @@ public partial class WidgetWindow : Window
 
         _resizingDashboard = true;
         _pillCenterXBeforeResize = GetPillScreenCenterX();
+        UpdateLayout();
+        _resizeStartLeft = Left;
+        _resizeStartWidth = ActualWidth > 0 ? ActualWidth : Width;
 
         // Stop any held animation so subsequent direct Height writes own the property.
         SettingsHost.BeginAnimation(HeightProperty, null);
@@ -1149,15 +1228,16 @@ public partial class WidgetWindow : Window
     {
         if (!_resizingDashboard) return;
 
-        var workArea = SystemParameters.WorkArea;
-        var maxW = Math.Max(MinDashboardWidth, workArea.Width - 40);
-        var maxH = Math.Max(MinDashboardHeight, workArea.Height - 80);
-
+        var workArea = DisplayBounds.GetWorkAreaForWindow(this);
         var currentW = double.IsNaN(SettingsPanelControl.Width) || SettingsPanelControl.Width <= 0
             ? SettingsPanelControl.ActualWidth
             : SettingsPanelControl.Width;
-        var newW = Math.Clamp(currentW + e.HorizontalChange, MinDashboardWidth, maxW);
-        var newH = Math.Clamp(_settingsTargetHeight + e.VerticalChange, MinDashboardHeight, maxH);
+        var (newW, newH) = DisplayBounds.ClampDashboardSize(
+            workArea,
+            currentW + e.HorizontalChange,
+            _settingsTargetHeight + e.VerticalChange,
+            MinDashboardWidth,
+            MinDashboardHeight);
         var widthChanged = Math.Abs(newW - currentW) > 0.5;
 
         SettingsPanelControl.Width = newW;
@@ -1168,10 +1248,6 @@ public partial class WidgetWindow : Window
         {
             SyncPillDuringDashboardResize();
         }
-        else
-        {
-            UpdateLayout();
-        }
     }
 
     private void ResizeGrip_DragCompleted(object sender, DragCompletedEventArgs e)
@@ -1181,7 +1257,10 @@ public partial class WidgetWindow : Window
 
         if (_settingsExpanded)
         {
-            SyncPillDuringDashboardResize();
+            // One final stable pass using screen coords after the drag ends.
+            UpdateLayout();
+            UpdatePillDashboardAlignment();
+            PreservePillScreenX(_pillCenterXBeforeResize);
         }
 
         // The new dimensions are intentionally not persisted: every launch resets
@@ -1198,15 +1277,15 @@ public partial class WidgetWindow : Window
     /// </summary>
     public void ResetLayoutToDefaults()
     {
-        // 1. Clamp the defaults against the current screen so this still does the right
-        //    thing on smaller monitors. The user can have any work area, so we always
-        //    re-validate against MinDashboard*/work-area-derived caps.
-        var workArea = SystemParameters.WorkArea;
-        var maxW = Math.Max(MinDashboardWidth, workArea.Width - 40);
-        var maxH = Math.Max(MinDashboardHeight, workArea.Height - 80);
-
-        var newW = Math.Clamp(DefaultDashboardWidth, MinDashboardWidth, maxW);
-        var newH = Math.Clamp(DefaultDashboardHeight, MinDashboardHeight, maxH);
+        // 1. Clamp the defaults against the current monitor so this still does the right
+        //    thing on smaller / secondary displays.
+        var workArea = DisplayBounds.GetWorkAreaForWindow(this);
+        var (newW, newH) = DisplayBounds.ClampDashboardSize(
+            workArea,
+            DefaultDashboardWidth,
+            DefaultDashboardHeight,
+            MinDashboardWidth,
+            MinDashboardHeight);
 
         // 2. Snap dashboard dimensions back. If the panel is open we animate the
         //    height change so the user sees the reset happening.

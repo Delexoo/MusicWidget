@@ -74,6 +74,7 @@ public partial class SettingsPanel : UserControl
     private Track? _nowPlayingTrack;
     private bool _suppressVolumeChanged;
     private bool _suppressProgressChanged;
+    private bool _suppressSpeedChanged;
     private int _lastNonZeroVolume = 80;
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _backgroundDownloadHideTimer;
@@ -280,6 +281,14 @@ public partial class SettingsPanel : UserControl
         _suppressVolumeChanged = true;
         FooterVolumeSlider.Value = v;
         _suppressVolumeChanged = false;
+
+        // Always show/apply normal speed on launch (speed is not restored across sessions).
+        App.Player.SetRate(1f);
+        App.Settings.Current.PlaybackSpeed = 1.0;
+        _suppressSpeedChanged = true;
+        FooterSpeedSlider.Value = 1.0;
+        _suppressSpeedChanged = false;
+        UpdateFooterSpeedLabel(1.0);
 
         UpdateFooterPlayPauseIcon();
         UpdateFooterLoopIcon();
@@ -552,12 +561,9 @@ public partial class SettingsPanel : UserControl
 
     private void FooterProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_suppressProgressChanged)
-        {
-            return;
-        }
-
-        if (!FooterProgressSlider.IsMouseCaptureWithin)
+        // Timer-driven updates set _suppressProgressChanged; anything else is user input
+        // (drag or click-to-point), so seek immediately.
+        if (_suppressProgressChanged || !_isLoaded || FooterProgressSlider is null)
         {
             return;
         }
@@ -575,7 +581,11 @@ public partial class SettingsPanel : UserControl
 
     private void FooterVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_suppressVolumeChanged) return;
+        // Same XAML-parse race as the speed slider — don't touch player/settings mid-load.
+        if (_suppressVolumeChanged || !_isLoaded || FooterVolumeSlider is null)
+        {
+            return;
+        }
 
         var v = (int)Math.Round(e.NewValue);
         v = Math.Clamp(v, 0, 100);
@@ -586,6 +596,38 @@ public partial class SettingsPanel : UserControl
         App.Settings.ScheduleSave();
 
         UpdateFooterVolumeIcon();
+    }
+
+    private void FooterSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        // Slider fires ValueChanged while XAML is still parsing (e.g. Minimum set).
+        // Ignore until the panel is fully loaded and named fields exist.
+        if (_suppressSpeedChanged || !_isLoaded || FooterSpeedLabel is null || FooterSpeedSlider is null)
+        {
+            return;
+        }
+
+        var speed = Math.Clamp(e.NewValue, 0.5, 2.0);
+        // Apply live (with soft snap near 1.0 inside the player) but don't yank the
+        // thumb back while the user is still dragging — that felt jumpy.
+        App.Player.SetRate((float)speed);
+        var applied = App.Player.Rate;
+        App.Settings.Current.PlaybackSpeed = applied;
+        UpdateFooterSpeedLabel(applied);
+
+        if (!FooterSpeedSlider.IsMouseCaptureWithin
+            && Math.Abs(FooterSpeedSlider.Value - applied) > 0.001)
+        {
+            _suppressSpeedChanged = true;
+            FooterSpeedSlider.Value = applied;
+            _suppressSpeedChanged = false;
+        }
+    }
+
+    private void UpdateFooterSpeedLabel(double speed)
+    {
+        if (FooterSpeedLabel is null) return;
+        FooterSpeedLabel.Text = $"{speed:0.0}x";
     }
 
     // ===== Reset layout =====
@@ -867,7 +909,11 @@ public partial class SettingsPanel : UserControl
         foreach (var pl in _playlistsCache)
         {
             pl.IsUserPinned = pinnedNames.Contains(pl.Name);
+            PlaylistIconService.Hydrate(pl);
         }
+
+        PlaylistIconService.Hydrate(_likedPlaylist);
+        PlaylistIconService.Hydrate(_savesPlaylist);
 
         var prevSelected = PlaylistsList.SelectedItem;
         RebuildPlaylistItemsList();
@@ -1226,11 +1272,10 @@ public partial class SettingsPanel : UserControl
 
     private void DownloadUrlIntoPlaylist(Playlist playlist)
     {
-        var window = new DownloadUrlWindow(playlist)
-        {
-            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
-        };
-        window.ShowDialog();
+        var owner = Window.GetWindow(this)
+                    ?? Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive);
+        var window = new DownloadUrlWindow(playlist);
+        DismissibleWindow.Show(window, owner);
         if (window.OpenYoutubeCookiesRequested)
         {
             ShowView(View.YoutubeCookies);
@@ -1378,7 +1423,8 @@ public partial class SettingsPanel : UserControl
             }
 
             BackgroundDownloadBanner.Visibility = Visibility.Visible;
-            BackgroundDownloadTitle.Text = $"Downloading to \"{e.PlaylistName}\"";
+            var queueNote = e.QueueRemaining > 0 ? $"  ·  {e.QueueRemaining} queued" : string.Empty;
+            BackgroundDownloadTitle.Text = $"Downloading to \"{e.PlaylistName}\"{queueNote}";
             BackgroundDownloadCancelButton.IsEnabled = App.BackgroundDownloads.IsRunning;
             BackgroundDownloadCancelButton.Visibility = App.BackgroundDownloads.IsRunning
                 ? Visibility.Visible
@@ -1412,6 +1458,30 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
+        if (e.Success)
+        {
+            RefreshAfterDownload(e.PlaylistName);
+        }
+
+        // More jobs waiting — keep the banner and let progress events take over.
+        if (e.HasMoreQueued && !e.Cancelled)
+        {
+            BackgroundDownloadBanner.Visibility = Visibility.Visible;
+            BackgroundDownloadTitle.Text = e.Success
+                ? $"Download complete · {e.QueueRemaining} queued"
+                : $"Download issue · continuing queue ({e.QueueRemaining} left)";
+            BackgroundDownloadDetail.Text = e.Success
+                ? (e.DownloadedCount == 1
+                    ? "1 song added. Starting next download..."
+                    : $"{e.DownloadedCount} songs added. Starting next download...")
+                : (e.Error ?? "Something went wrong. Starting next download...");
+            BackgroundDownloadProgress.Value = 0;
+            BackgroundDownloadPercent.Text = string.Empty;
+            BackgroundDownloadCancelButton.IsEnabled = true;
+            BackgroundDownloadCancelButton.Visibility = Visibility.Visible;
+            return;
+        }
+
         _backgroundDownloadPlaylistName = null;
 
         if (e.Success)
@@ -1422,8 +1492,6 @@ public partial class SettingsPanel : UserControl
                 : $"{e.DownloadedCount} songs added to \"{e.PlaylistName}\".";
             BackgroundDownloadProgress.Value = 100;
             BackgroundDownloadPercent.Text = "100%";
-
-            RefreshAfterDownload(e.PlaylistName);
         }
         else if (e.Cancelled)
         {
@@ -1437,6 +1505,8 @@ public partial class SettingsPanel : UserControl
             BackgroundDownloadDetail.Text = e.Error ?? "Something went wrong.";
             BackgroundDownloadPercent.Text = string.Empty;
         }
+
+        BackgroundDownloadCancelButton.Visibility = Visibility.Collapsed;
 
         _backgroundDownloadHideTimer?.Stop();
         if (_backgroundDownloadHideTick is not null)
@@ -1755,7 +1825,65 @@ public partial class SettingsPanel : UserControl
                 case "Delete playlist":
                     mi.IsEnabled = isNormal;
                     break;
+                case "Remove icon":
+                    mi.IsEnabled = pl?.HasCustomIcon == true;
+                    break;
             }
+        }
+    }
+
+    private void PlaylistIconButton_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not Button { Tag: Playlist pl })
+        {
+            return;
+        }
+
+        ChangePlaylistIcon(pl);
+    }
+
+    private void PlaylistContextChangeIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var pl = PlaylistFromMenuItem(sender);
+        if (pl is null) return;
+        ChangePlaylistIcon(pl);
+    }
+
+    private void PlaylistContextRemoveIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var pl = PlaylistFromMenuItem(sender);
+        if (pl is null || !pl.HasCustomIcon) return;
+        PlaylistIconService.ClearIcon(pl);
+    }
+
+    private void ChangePlaylistIcon(Playlist pl)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Choose playlist icon",
+            Filter = "Image files|*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.gif|All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+
+        var owner = Window.GetWindow(this);
+        if (dlg.ShowDialog(owner) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var icon = PlaylistIconService.SetIconFromFile(pl, dlg.FileName);
+            if (icon is null)
+            {
+                ModernMessageBox.ShowWarning("Could not load the selected image.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.ShowWarning($"Could not set playlist icon: {ex.Message}");
         }
     }
 
@@ -2755,7 +2883,7 @@ public partial class SettingsPanel : UserControl
         }
 
         var confirmed = ModernMessageBox.ConfirmYesNo(
-            $"Install Windows Beats {update.LatestVersion}?\n\nWindows Beats will close now, install the update, and reopen automatically.",
+            $"Install MusicWidget {update.LatestVersion}?\n\nMusicWidget will close now, install the update, and reopen automatically.",
             "Install update",
             ModernMessageBox.Severity.Question);
         if (!confirmed)
@@ -2855,25 +2983,19 @@ public partial class SettingsPanel : UserControl
 
     private static EditTrackResult? PromptForEditTrack(Track track)
     {
-        var window = new EditTrackWindow(track)
-        {
-            Owner = Application.Current.Windows.OfType<Window>()
-                .FirstOrDefault(w => w.IsActive),
-        };
-        return window.ShowDialog() == true ? window.Result : null;
+        var owner = Application.Current.Windows.OfType<Window>()
+            .FirstOrDefault(w => w.IsActive);
+        var window = new EditTrackWindow(track);
+        DismissibleWindow.Show(window, owner, () => window.Accepted);
+        return window.Accepted ? window.Result : null;
     }
 
     private static string? PromptForName(string title, string prompt, string defaultValue)
     {
-        var window = new NameInputWindow(title, prompt, defaultValue)
-        {
-            Owner = Application.Current.Windows.OfType<Window>()
-                .FirstOrDefault(w => w.IsActive),
-        };
-        if (window.ShowDialog() == true)
-        {
-            return window.Value;
-        }
-        return null;
+        var owner = Application.Current.Windows.OfType<Window>()
+            .FirstOrDefault(w => w.IsActive);
+        var window = new NameInputWindow(title, prompt, defaultValue);
+        DismissibleWindow.Show(window, owner, () => window.Accepted);
+        return window.Accepted ? window.Value : null;
     }
 }

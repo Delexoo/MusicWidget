@@ -1,27 +1,30 @@
-Windows Beats - TERMS OF SERVICE
-Last updated: July 2026
+MusicWidget - TERMS OF SERVICE
+Published by Delexo (https://delexo.store)
+Effective date: 25 October 2026
+Version: 2026-10-25
 
-By installing or using Windows Beats ("the Software"), you agree to these Terms of
-Service. If you do not agree, do not install or use the Software.
+By installing or using MusicWidget ("the Software"), you agree to these Terms of
+Service and the MusicWidget License Agreement shown in the installer. If you do
+not agree, do not install or use the Software.
 
 
 1. WHO WE ARE
 
-Windows Beats is developed and published by Delexo ("we", "us", "our"). We created
-the Windows Beats desktop application only. We do not operate, own, or control any
-music platform, streaming service, or third-party website from which you
-may choose to download content.
+MusicWidget is developed and published by Delexo ("we", "us", "our"). We created
+the MusicWidget desktop application only. We do not operate, own, or control any
+music platform, streaming service, or third-party website from which you may
+choose to download content.
 
 
-2. WHAT Windows Beats IS
+2. WHAT MUSICWIDGET IS
 
-Windows Beats is a local desktop music player for Windows. It plays audio files stored
-on your computer and, if you choose to use that feature, can help you save
-audio from URLs you paste using third-party command-line tools (such as
-yt-dlp and spotDL) that are downloaded separately on first use.
+MusicWidget is a free, local desktop music player for Windows. It plays audio
+files stored on your computer and can optionally help you save audio from URLs
+you paste using third-party tools (such as yt-dlp and spotDL) that are
+downloaded separately on first use.
 
-We provide software. We do not provide music, playlists, hosting, or any
-online content library.
+We provide software. We do not provide music, playlists, hosting, or any online
+content library.
 
 
 3. YOUR RESPONSIBILITY FOR CONTENT
@@ -29,32 +32,28 @@ online content library.
 You are solely responsible for:
 
   • All music, audio, and other files you play, store, import, or download
-    using Windows Beats;
+    using MusicWidget;
   • Ensuring you have the legal right to access, copy, and keep that content;
   • Complying with copyright law, platform terms of service, and any other
     applicable laws in your country or region.
 
-We are not responsible for any content you add to Windows Beats, whether you copied
-it from your own files, a link you pasted, or any other source. We do not
-review, monitor, or approve your files or downloads.
+We are not responsible for any content you add to MusicWidget. We do not review,
+monitor, or approve your files or downloads.
 
 
 4. NO AFFILIATION WITH THIRD PARTIES
 
-Windows Beats is an independent product by Delexo. It is not affiliated with,
-endorsed by, sponsored by, or associated with Microsoft Corporation or the
-Windows trademark. It is also not affiliated with YouTube, Google, Spotify,
-TikTok, SoundCloud, Instagram, Apple, or any other company, artist, label,
-or platform.
+MusicWidget is not affiliated with, endorsed by, or sponsored by YouTube,
+Google, Spotify, TikTok, SoundCloud, Instagram, Apple, Microsoft, or any other
+company, artist, label, or platform.
 
 Any trademarks, service marks, or brand names belong to their respective
-owners. References to third-party services in Windows Beats or its documentation
-are for identification only.
+owners. References to third-party services are for identification only.
 
 
 5. DOWNLOAD FEATURE DISCLAIMER
 
-If you use Windows Beats to download audio from the web:
+If you use MusicWidget to download audio from the web:
 
   • You do so at your own risk and on your own initiative;
   • You must respect the terms and policies of each website or service;
@@ -63,31 +62,26 @@ If you use Windows Beats to download audio from the web:
   • We are not liable for failed downloads, removed content, account
     restrictions, or actions taken by third-party platforms.
 
-Windows Beats integrates with open-source tools maintained by other projects. We do
+MusicWidget integrates with open-source tools maintained by other projects. We do
 not control those tools and are not responsible for their behavior or updates.
 
 
 6. PROHIBITED USES
 
-You agree not to use Windows Beats to:
+You agree not to use MusicWidget to:
 
   • Infringe copyright or other intellectual property rights;
   • Circumvent DRM or access controls where doing so is unlawful;
   • Distribute malware or harmful material;
   • Violate any applicable law or third-party terms.
 
-We may discontinue the Software at any time but are not obligated to police
-how you use it.
-
 
 7. DISCLAIMER OF WARRANTIES
 
-Windows Beats IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND,
-WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
-
-We do not warrant that the Software will be error-free, uninterrupted, or
-compatible with every site or file format.
+MUSICWIDGET IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY
+KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NON-INFRINGEMENT.
 
 
 8. LIMITATION OF LIABILITY
@@ -95,31 +89,28 @@ compatible with every site or file format.
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, DELEXO AND ITS CONTRIBUTORS SHALL NOT
 BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE
 DAMAGES, OR ANY LOSS OF DATA, PROFITS, OR GOODWILL, ARISING FROM YOUR USE OF
-Windows Beats OR ANY CONTENT OBTAINED THROUGH IT.
+MUSICWIDGET OR ANY CONTENT OBTAINED THROUGH IT.
 
-OUR TOTAL LIABILITY FOR ANY CLAIM RELATING TO Windows Beats SHALL NOT EXCEED THE
-AMOUNT YOU PAID FOR THE SOFTWARE (IF ANY). Windows Beats IS OFFERED FREE OF CHARGE.
+OUR TOTAL LIABILITY FOR ANY CLAIM RELATING TO MUSICWIDGET SHALL NOT EXCEED THE
+AMOUNT YOU PAID FOR THE SOFTWARE (IF ANY). MUSICWIDGET IS OFFERED FREE OF
+CHARGE.
 
 
 9. SOFTWARE LICENSE
 
-The Windows Beats application source code is licensed under the MIT License. A copy
-of the MIT License is included with the open-source repository. These Terms
-of Service govern your use of the compiled application and installer.
+The MusicWidget application source code is licensed under the MIT License. A
+copy is included in the installation folder under Legal\. The full License
+Agreement is shown during setup and installed as Legal\License-Agreement.rtf.
 
 
 10. CHANGES
 
-We may update these Terms from time to time. Continued use of Windows Beats after an
-update constitutes acceptance of the revised Terms. The version bundled with
-your installer is available in your installation folder under Legal\.
+We may update these Terms from time to time. Continued use of MusicWidget after
+an update constitutes acceptance of the revised Terms.
 
 
 11. CONTACT
 
-Questions about these Terms:
-  https://github.com/Delexoo/beats
-  https://delexoo.github.io/beats/help.html
   https://delexo.store
-
-A copy of our Privacy Policy is installed alongside this file in the Legal folder.
+  https://delexoo.github.io/beats/help.html
+  https://github.com/Delexoo/beats
