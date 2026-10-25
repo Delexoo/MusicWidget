@@ -38,7 +38,7 @@ public sealed class ToolBootstrapper
         "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip";
     private const string GetPipUrl = "https://bootstrap.pypa.io/get-pip.py";
     private const string VocalSepVersionMarkerFile = ".vocal-sep-version";
-    private const string VocalSepVersionMarkerValue = "demucs-onnx-1";
+    private const string VocalSepVersionMarkerValue = "demucs-onnx-2";
 
     private readonly string _toolsDir;
     private readonly string _vocalSepDir;
@@ -275,9 +275,10 @@ public sealed class ToolBootstrapper
                 Directory.CreateDirectory(pythonDir);
                 ZipFile.ExtractToDirectory(zipPath, pythonDir, overwriteFiles: true);
                 try { File.Delete(zipPath); } catch { }
-
-                EnableEmbeddableSitePackages(pythonDir);
             }
+
+            // Always re-apply: partial installs may leave embeddable Python without site-packages.
+            EnableEmbeddableSitePackages(pythonDir);
 
             progress?.Report(new DownloadProgressUpdate(30, "Bootstrapping pip..."));
             await EnsurePipAsync(http, progress, ct);
@@ -300,6 +301,8 @@ public sealed class ToolBootstrapper
 
     private static void EnableEmbeddableSitePackages(string pythonDir)
     {
+        Directory.CreateDirectory(Path.Combine(pythonDir, "Lib", "site-packages"));
+
         foreach (var pth in Directory.EnumerateFiles(pythonDir, "python*._pth"))
         {
             var text = File.ReadAllText(pth);
@@ -331,15 +334,27 @@ public sealed class ToolBootstrapper
         }
 
         // Already have pip?
-        if (await RunPythonAsync(["-m", "pip", "--version"], ct) == 0)
+        if ((await RunPythonAsync(["-m", "pip", "--version"], ct)).ExitCode == 0)
         {
             return;
         }
 
-        var code = await RunPythonAsync([getPip, "--no-warn-script-location"], ct);
+        var (code, stderr) = await RunPythonAsync(
+            [getPip, "--no-warn-script-location"],
+            ct);
         if (code != 0)
         {
-            throw new InvalidOperationException("Could not install pip for the vocal remover Python runtime.");
+            // Retry once with --force-reinstall style fresh get-pip download.
+            try { File.Delete(getPip); } catch { /* ignore */ }
+            await DownloadFileAsync(http, GetPipUrl, getPip, progress, "Re-downloading get-pip", 32, 40, ct);
+            (code, stderr) = await RunPythonAsync([getPip, "--no-warn-script-location"], ct);
+        }
+
+        if (code != 0)
+        {
+            var detail = string.IsNullOrWhiteSpace(stderr) ? "" : " " + TrimError(stderr);
+            throw new InvalidOperationException(
+                "Could not install pip for the vocal remover Python runtime." + detail);
         }
     }
 
@@ -360,12 +375,12 @@ public sealed class ToolBootstrapper
             "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
         };
         installArgs.AddRange(packages);
-        var code = await RunPythonAsync(installArgs, ct);
+        var (code, stderr) = await RunPythonAsync(installArgs, ct);
         if (code != 0)
         {
             progress?.Report(new DownloadProgressUpdate(60,
                 "DirectML install failed; trying CPU onnxruntime..."));
-            code = await RunPythonAsync(
+            (code, stderr) = await RunPythonAsync(
                 [
                     "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
                     "demucs-onnx", "demucs-onnx[mp3]", "onnxruntime"
@@ -375,16 +390,23 @@ public sealed class ToolBootstrapper
 
         if (code != 0)
         {
+            var detail = string.IsNullOrWhiteSpace(stderr) ? "" : " " + TrimError(stderr);
             throw new InvalidOperationException(
-                "Could not install demucs-onnx. Check your network and try again.");
+                "Could not install demucs-onnx. Check your network and try again." + detail);
         }
     }
 
-    private async Task<int> RunPythonAsync(IReadOnlyList<string> args, CancellationToken ct)
+    /// <summary>
+    /// Runs embeddable python.exe. Always drains redirected stdout/stderr so verbose
+    /// tools like get-pip / pip install cannot deadlock on a full pipe buffer.
+    /// </summary>
+    private async Task<(int ExitCode, string Stderr)> RunPythonAsync(
+        IReadOnlyList<string> args,
+        CancellationToken ct)
     {
         if (!File.Exists(VocalSeparatorPython))
         {
-            return -1;
+            return (-1, "python.exe missing");
         }
 
         var psi = new ProcessStartInfo
@@ -394,21 +416,44 @@ public sealed class ToolBootstrapper
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            WorkingDirectory = _vocalSepDir,
+            WorkingDirectory = Path.Combine(_vocalSepDir, "python"),
         };
         foreach (var a in args)
         {
             psi.ArgumentList.Add(a);
         }
 
-        using var proc = Process.Start(psi);
-        if (proc is null)
+        using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        if (!proc.Start())
         {
-            return -1;
+            return (-1, "failed to start python");
         }
 
-        await proc.WaitForExitAsync(ct);
-        return proc.ExitCode;
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+
+        using (ct.Register(() =>
+               {
+                   try
+                   {
+                       if (!proc.HasExited) proc.Kill(entireProcessTree: true);
+                   }
+                   catch { /* ignore */ }
+               }))
+        {
+            await proc.WaitForExitAsync(ct);
+        }
+
+        var stderr = await stderrTask;
+        _ = await stdoutTask;
+        return (proc.ExitCode, stderr ?? string.Empty);
+    }
+
+    private static string TrimError(string text)
+    {
+        text = text.Trim();
+        if (text.Length <= 280) return text;
+        return text[^280..];
     }
 
     /// <summary>
