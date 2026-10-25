@@ -81,6 +81,7 @@ public partial class SettingsPanel : UserControl
     private bool _adjustingSpeed;
     private bool _updateInstallInFlight;
     private bool _suppressEffectToggle;
+    private bool _suppressKeepOpenToggle;
     private int _lastNonZeroVolume = 80;
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _backgroundDownloadHideTimer;
@@ -113,6 +114,7 @@ public partial class SettingsPanel : UserControl
         _isLoaded = true;
         _isPanelActive = true;
         ShowView(View.Home);
+        ApplyDashboardChrome();
         InitializeTracksListZoom();
         UpdateShuffleButton();
         InitializeFooter();
@@ -857,6 +859,46 @@ public partial class SettingsPanel : UserControl
         // (position + dashboard dimensions + splitter).
         var owner = Window.GetWindow(this) as WidgetWindow;
         owner?.ResetLayoutToDefaults();
+    }
+
+    private void ApplyDashboardChrome()
+    {
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        DashboardVersionText.Text = version is null
+            ? string.Empty
+            : $"v{version.Major}.{version.Minor}.{version.Build}";
+
+        _suppressKeepOpenToggle = true;
+        KeepOpenToggle.IsChecked = App.Settings.Current.KeepDashboardOpen;
+        _suppressKeepOpenToggle = false;
+        ApplyKeepOpenToggleVisual();
+    }
+
+    private void KeepOpenToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressKeepOpenToggle)
+        {
+            return;
+        }
+
+        var keepOpen = KeepOpenToggle.IsChecked == true;
+        App.Settings.Current.KeepDashboardOpen = keepOpen;
+        App.Settings.Save();
+        ApplyKeepOpenToggleVisual();
+    }
+
+    private void ApplyKeepOpenToggleVisual()
+    {
+        var on = KeepOpenToggle.IsChecked == true;
+        KeepOpenToggle.ToolTip = on
+            ? "Keep open — on (click Minimize to close)"
+            : "Keep open — dashboard stays up when you click outside";
+        if (KeepOpenToggleIcon is not null)
+        {
+            KeepOpenToggleIcon.Fill = on
+                ? (Brush)FindResource("Brush.Blue")
+                : (Brush)FindResource("Brush.TextDim");
+        }
     }
 
     // ----- Navigation -----

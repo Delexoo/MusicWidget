@@ -2,6 +2,17 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.27] - 2026-10-25
+
+### Added
+- **Keep open** pin next to the update/download button — dashboard stays open when clicking outside (minimize manually)
+- App version shown next to the Dashboard title
+
+### Changed
+- Library renamed to **Dashboard**; removed the “Playlists and now playing” subtitle
+- Nested dialogs (Paste audio link, confirmations) dismiss first; a second outside click closes the dashboard
+- Install/update and other prompts center on the dashboard (no more stuck-at-top positioning)
+
 ## [2.2.26] - 2026-10-25
 
 ### Changed

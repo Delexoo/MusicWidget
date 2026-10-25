@@ -73,7 +73,7 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## What's new
 
-**Latest: v2.2.26** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
+**Latest: v2.2.27** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
@@ -143,7 +143,7 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 | **Widget** | Always on top | draggable | no taskbar icon | hover to expand loop & settings |
 | **Dashboard** | Playlists | track list | seek bar | volume | liked & saved songs |
 | **Playback** | Play / pause | previous / next | shuffle | loop current | LibVLC engine |
-| **Library** | Folder playlists | pin favorites | custom sort order | live folder watching |
+| **Dashboard** | Folder playlists | pin favorites | custom sort order | live folder watching |
 | **Downloads** | YouTube | Spotify | TikTok | SoundCloud | Instagram | 1000+ sites via yt-dlp |
 | **Quality of life** | Global hotkeys | top chevron hide tab | resizable dashboard | crash logging |
 

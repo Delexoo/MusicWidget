@@ -63,4 +63,10 @@ public sealed class AppSettings
     /// Inspired by VLC karaoke / voiceout-style phase cancellation.
     /// </summary>
     public bool VocalRemover { get; set; }
+
+    /// <summary>
+    /// When true, clicking outside the dashboard does not collapse it — only the
+    /// minimize button (or hotkey) closes/hides the widget.
+    /// </summary>
+    public bool KeepDashboardOpen { get; set; }
 }

@@ -559,6 +559,16 @@ public partial class WidgetWindow : Window
             return;
         }
 
+        if (App.Settings.Current.KeepDashboardOpen)
+        {
+            return;
+        }
+
+        if (DismissibleWindow.ShouldSuppressOwnerMinimize)
+        {
+            return;
+        }
+
         if (IsDescendantOf(e.OriginalSource as DependencyObject, SettingsHost))
         {
             return;
@@ -569,6 +579,8 @@ public partial class WidgetWindow : Window
 
     /// <summary>
     /// Clicking another app or the desktop closes the dashboard (not the whole widget).
+    /// Nested dialogs (Paste audio link, confirmations) dismiss first; a second outside
+    /// click then collapses the dashboard. Keep-open pin skips auto-collapse entirely.
     /// </summary>
     private void WidgetWindow_Deactivated(object? sender, EventArgs e)
     {
@@ -577,9 +589,29 @@ public partial class WidgetWindow : Window
             return;
         }
 
+        if (App.Settings.Current.KeepDashboardOpen)
+        {
+            return;
+        }
+
+        if (DismissibleWindow.ShouldSuppressOwnerMinimize)
+        {
+            return;
+        }
+
         Dispatcher.BeginInvoke(() =>
         {
             if (!_settingsExpanded || _animatingSettings || ComponentDispatcher.IsThreadModal)
+            {
+                return;
+            }
+
+            if (App.Settings.Current.KeepDashboardOpen)
+            {
+                return;
+            }
+
+            if (DismissibleWindow.ShouldSuppressOwnerMinimize)
             {
                 return;
             }
