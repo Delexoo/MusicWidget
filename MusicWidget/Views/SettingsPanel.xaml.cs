@@ -227,27 +227,14 @@ public partial class SettingsPanel : UserControl
     private void UpdatePlaylistPlayingStates()
     {
         var isPlaying = App.Player.IsPlaying;
-        Playlist? active = null;
+        var current = App.Player.CurrentTrack;
+        var active = current is null ? null : ResolvePlaybackSourcePlaylist(current);
 
         foreach (var pl in EnumerateKnownPlaylists())
         {
-            if (IsPlaylistActive(pl))
-            {
-                active = pl;
-                break;
-            }
-        }
-
-        if (_lastActivePlaylist is not null && !ReferenceEquals(_lastActivePlaylist, active))
-        {
-            _lastActivePlaylist.IsActivePlaylist = false;
-            _lastActivePlaylist.IsPlayingNow = false;
-        }
-
-        if (active is not null)
-        {
-            active.IsActivePlaylist = true;
-            active.IsPlayingNow = isPlaying;
+            var isActive = ReferenceEquals(pl, active);
+            pl.IsActivePlaylist = isActive;
+            pl.IsPlayingNow = isActive && isPlaying;
         }
 
         _lastActivePlaylist = active;
@@ -263,6 +250,50 @@ public partial class SettingsPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Playlist whose row should show play/pause for the current track.
+    /// Must own the file — not merely be the last selected dashboard playlist
+    /// (selecting an empty playlist used to falsely show Pause while another
+    /// playlist was actually playing).
+    /// </summary>
+    private Playlist? ResolvePlaybackSourcePlaylist(Track current)
+    {
+        var currentName = App.Settings.Current.CurrentPlaylist;
+
+        // Prefer the settings "current" playlist only when it actually contains the track.
+        if (!string.IsNullOrEmpty(currentName))
+        {
+            var preferred = _playlistsCache.FirstOrDefault(p =>
+                string.Equals(p.Name, currentName, StringComparison.OrdinalIgnoreCase));
+            if (preferred is not null && PlaylistContainsTrack(preferred, current))
+            {
+                return preferred;
+            }
+        }
+
+        // Otherwise any folder playlist that owns the file.
+        foreach (var pl in _playlistsCache)
+        {
+            if (PlaylistContainsTrack(pl, current))
+            {
+                return pl;
+            }
+        }
+
+        // Virtual queues only when no folder playlist owns the track.
+        if (App.LikedSongs.Contains(current.FilePath))
+        {
+            return _likedPlaylist;
+        }
+
+        if (App.SavedSongs.Contains(current.FilePath))
+        {
+            return _savesPlaylist;
+        }
+
+        return null;
+    }
+
     private bool IsPlaylistActive(Playlist playlist)
     {
         var current = App.Player.CurrentTrack;
@@ -271,15 +302,12 @@ public partial class SettingsPanel : UserControl
             return false;
         }
 
-        return playlist.Kind switch
-        {
-            PlaylistKind.Normal => !string.IsNullOrEmpty(App.Settings.Current.CurrentPlaylist) &&
-                string.Equals(playlist.Name, App.Settings.Current.CurrentPlaylist, StringComparison.OrdinalIgnoreCase),
-            PlaylistKind.Liked => App.LikedSongs.Contains(current.FilePath),
-            PlaylistKind.Saves => App.SavedSongs.Contains(current.FilePath),
-            _ => false,
-        };
+        return ReferenceEquals(playlist, ResolvePlaybackSourcePlaylist(current));
     }
+
+    private static bool PlaylistContainsTrack(Playlist playlist, Track track) =>
+        playlist.Tracks.Any(t =>
+            string.Equals(t.FilePath, track.FilePath, StringComparison.OrdinalIgnoreCase));
 
     // ===== Now Playing footer =====
 
