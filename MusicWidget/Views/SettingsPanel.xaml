@@ -1063,8 +1063,12 @@
                          Foreground="{StaticResource Brush.Text}"/>
               <TextBlock x:Name="BackgroundDownloadDetail"
                          FontSize="11"
+                         LineHeight="16"
+                         LineStackingStrategy="BlockLineHeight"
                          Foreground="{StaticResource Brush.TextDim}"
-                         Margin="0,2,0,6"
+                         Margin="0,3,8,8"
+                         Padding="0,1,0,1"
+                         TextWrapping="NoWrap"
                          TextTrimming="CharacterEllipsis"/>
               <ProgressBar x:Name="BackgroundDownloadProgress"
                            Height="4"
@@ -1188,18 +1192,18 @@
                        TextWrapping="Wrap"
                        Visibility="Collapsed"/>
 
-          <Grid>
+          <Grid ClipToBounds="False">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" MinWidth="175"/>
+              <ColumnDefinition Width="*" MinWidth="140"/>
               <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="*" MinWidth="175"/>
+              <ColumnDefinition Width="*" MinWidth="250"/>
             </Grid.ColumnDefinitions>
 
             <!-- Left: cover + title/artist + like + save -->
             <Grid Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*" MaxWidth="200"/>
+                <ColumnDefinition Width="*" MaxWidth="160"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
@@ -1373,21 +1377,23 @@
               </Button>
             </StackPanel>
 
-            <!-- Right: volume + speed + progress -->
+            <!-- Right: volume + speed + progress (stretch — fixed width was clipping labels) -->
             <StackPanel Grid.Column="2"
                         VerticalAlignment="Center"
-                        HorizontalAlignment="Right"
-                        Width="268">
+                        HorizontalAlignment="Stretch"
+                        Margin="8,0,0,0"
+                        ClipToBounds="False">
               <Grid HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                 </Grid.ColumnDefinitions>
                 <Button x:Name="FooterMuteButton"
                         Grid.Column="0"
                         Style="{StaticResource PlaylistRowIconButtonStyle}"
                         Width="26" Height="26"
+                        HorizontalAlignment="Left"
                         Margin="0,0,4,0"
                         Click="FooterMute_Click"
                         ToolTip="Mute / unmute">
@@ -1419,22 +1425,23 @@
                            FontFamily="{StaticResource Font.Mono}"
                            FontSize="10.5"
                            VerticalAlignment="Center"
-                           MinWidth="38"
+                           HorizontalAlignment="Right"
                            TextAlignment="Right"
                            Margin="6,0,0,0"/>
               </Grid>
               <Grid Margin="0,2,0,0"
                     HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            Text="Speed"
                            Foreground="{StaticResource Brush.TextDim}"
                            FontSize="10.5"
                            VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
                            Margin="0,0,6,0"/>
                 <Slider x:Name="FooterSpeedSlider"
                         Grid.Column="1"
@@ -1460,16 +1467,16 @@
                            FontFamily="{StaticResource Font.Mono}"
                            FontSize="10.5"
                            VerticalAlignment="Center"
-                           MinWidth="34"
+                           HorizontalAlignment="Right"
                            TextAlignment="Right"
                            Margin="6,0,0,0"/>
               </Grid>
               <Grid Margin="0,2,0,0"
                     HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="44"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="FooterPositionLabel"
                            Grid.Column="0"
@@ -1478,7 +1485,7 @@
                            FontFamily="{StaticResource Font.Mono}"
                            FontSize="10.5"
                            VerticalAlignment="Center"
-                           MinWidth="34"
+                           HorizontalAlignment="Left"
                            Margin="0,0,6,0"/>
                 <Slider x:Name="FooterProgressSlider"
                         Grid.Column="1"
@@ -1500,7 +1507,7 @@
                            FontFamily="{StaticResource Font.Mono}"
                            FontSize="10.5"
                            VerticalAlignment="Center"
-                           MinWidth="34"
+                           HorizontalAlignment="Right"
                            TextAlignment="Right"
                            Margin="6,0,0,0"/>
               </Grid>

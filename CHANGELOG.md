@@ -2,6 +2,13 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.36] - 2026-10-25
+
+### Fixed
+- Footer volume/speed/time labels no longer clipped on the left
+- Download status text no longer cut off by the progress bar
+- Spotify downloads no longer hang at 92% while installing optional Deno (runs in background; drains process output)
+
 ## [2.2.35] - 2026-10-25
 
 ### Added

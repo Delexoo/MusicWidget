@@ -155,6 +155,7 @@ public sealed class ToolBootstrapper
 
         if (IsSpotDlReady)
         {
+            StartDenoBootstrapInBackground();
             return;
         }
 
@@ -164,6 +165,7 @@ public sealed class ToolBootstrapper
             TryMigrateSpotDlVersion(progress);
             if (IsSpotDlReady)
             {
+                StartDenoBootstrapInBackground();
                 return;
             }
 
@@ -177,7 +179,9 @@ public sealed class ToolBootstrapper
                 "Downloading spotDL", 2, 90, ct);
             WriteSpotDlVersionMarker();
 
-            await TryBootstrapDenoAsync(progress, ct);
+            // Deno is optional and used to hang Spotify downloads (stdout deadlock + long fetch).
+            // Kick it off in the background so the actual track download can start immediately.
+            StartDenoBootstrapInBackground();
         }
         finally
         {
@@ -457,20 +461,37 @@ public sealed class ToolBootstrapper
     }
 
     /// <summary>
-    /// spotDL recommends Deno for some YouTube Music tracks. Best-effort; failures are ignored.
+    /// spotDL recommends Deno for some YouTube Music tracks. Never blocks downloads —
+    /// a prior await deadlocked on redirected stdout and stuck the UI at 92%.
     /// </summary>
-    private async Task TryBootstrapDenoAsync(
-        IProgress<DownloadProgressUpdate>? progress,
-        CancellationToken ct)
+    private void StartDenoBootstrapInBackground()
+    {
+        var marker = Path.Combine(_toolsDir, DenoMarkerFile);
+        if (File.Exists(marker) || !File.Exists(SpotDlPath))
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await TryBootstrapDenoAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write(ex, "ToolBootstrapper.DenoBackground");
+            }
+        });
+    }
+
+    private async Task TryBootstrapDenoAsync(CancellationToken ct)
     {
         var marker = Path.Combine(_toolsDir, DenoMarkerFile);
         if (File.Exists(marker))
         {
             return;
         }
-
-        progress?.Report(new DownloadProgressUpdate(92,
-            "Installing Deno for spotDL (one-time, optional)..."));
 
         try
         {
@@ -490,15 +511,59 @@ public sealed class ToolBootstrapper
             using var proc = Process.Start(psi);
             if (proc is null)
             {
+                WriteDenoMarker();
                 return;
             }
 
-            await proc.WaitForExitAsync(ct);
-            File.WriteAllText(marker, DateTime.UtcNow.ToString("O") + Environment.NewLine);
+            // Must drain redirected pipes or spotDL/Deno can hang forever (full buffers).
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+            var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(90));
+
+            try
+            {
+                await proc.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+                await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        proc.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    /* best-effort */
+                }
+            }
         }
         catch
         {
             // Non-fatal — spotDL still works for most tracks without Deno.
+        }
+        finally
+        {
+            // Always mark attempted so we never block / retry-hang on every Spotify download.
+            WriteDenoMarker();
+        }
+    }
+
+    private void WriteDenoMarker()
+    {
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(_toolsDir, DenoMarkerFile),
+                DateTime.UtcNow.ToString("O") + Environment.NewLine);
+        }
+        catch
+        {
+            /* best-effort */
         }
     }
 
