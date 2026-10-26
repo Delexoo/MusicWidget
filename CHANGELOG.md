@@ -2,6 +2,11 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.34] - 2026-10-25
+
+### Fixed
+- Removed clipping/static from loud volume and bass boost (EQ headroom + safer level-3 curve)
+
 ## [2.2.33] - 2026-10-25
 
 ### Changed

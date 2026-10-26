@@ -66,12 +66,20 @@ public sealed class AudioPlayer : IDisposable
         get => _volume;
         set
         {
-            _volume = Math.Clamp(value, 0, MaxVolume);
+            var next = Math.Clamp(value, 0, MaxVolume);
+            var headroomChanged = (_volume > 100) != (next > 100)
+                || Math.Abs(_volume - next) >= 5;
+            _volume = next;
             try
             {
                 if (!_disposed)
                 {
                     _player.Volume = _volume;
+                    // Refresh EQ headroom when boosting above 100% so volume swings don't clip.
+                    if (headroomChanged)
+                    {
+                        ApplyEqualizer();
+                    }
                 }
             }
             catch
@@ -349,22 +357,31 @@ public sealed class AudioPlayer : IDisposable
 
             eq.SetPreamp(0f);
 
+            // Extra headroom when software volume is boosted above 100% (prevents digital clip/static).
+            var volumeHeadroom = _volume > 100
+                ? -((_volume - 100) / 100f) * 6f
+                : 0f;
+
             if (_bassBoostLevel > 0)
             {
-                // Level 1 mild → 2 strong → 3 extreme (LibVLC amp max ≈ ±20 dB).
+                // Level 1 mild → 2 strong → 3 extreme. Negative preamp = headroom so boosts don't clip.
                 var (b0, b1, b2, b3, b4, pre) = _bassBoostLevel switch
                 {
-                    1 => (8f, 6f, 3f, 1f, 0f, -2f),
-                    2 => (14f, 11f, 7f, 3f, 0f, -3.5f),
-                    // Level 3: slam every low band to the rail + mild preamp lift.
-                    _ => (20f, 20f, 20f, 16f, 8f, 3f),
+                    1 => (8f, 6f, 3f, 1f, 0f, -2.5f),
+                    2 => (14f, 11f, 7f, 3f, 0f, -5f),
+                    // Level 3: heavy low end, deep preamp cut so it stays loud without static.
+                    _ => (20f, 18f, 13f, 7f, 2f, -9f),
                 };
                 if (bandCount > 0) eq.SetAmp(b0, 0);
                 if (bandCount > 1) eq.SetAmp(b1, 1);
                 if (bandCount > 2) eq.SetAmp(b2, 2);
                 if (bandCount > 3) eq.SetAmp(b3, 3);
                 if (bandCount > 4) eq.SetAmp(b4, 4);
-                eq.SetPreamp(pre);
+                eq.SetPreamp(pre + volumeHeadroom);
+            }
+            else if (volumeHeadroom < 0f)
+            {
+                eq.SetPreamp(volumeHeadroom);
             }
 
             if (_reverb)

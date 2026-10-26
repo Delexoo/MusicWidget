@@ -73,7 +73,7 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## What's new
 
-**Latest: v2.2.33** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
+**Latest: v2.2.34** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
