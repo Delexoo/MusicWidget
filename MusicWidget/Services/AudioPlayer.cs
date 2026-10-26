@@ -194,6 +194,12 @@ public sealed class AudioPlayer : IDisposable
 
         EffectsChanged?.Invoke(this, EventArgs.Empty);
 
+        App.StemPrefetch.SetEnabled(enabled);
+        if (enabled)
+        {
+            _ = App.StemPrefetch.WarmToolsAsync();
+        }
+
         if (track is null)
         {
             CancelVocalSeparation();
@@ -203,6 +209,11 @@ public sealed class AudioPlayer : IDisposable
         CancelVocalSeparation();
         lock (_playbackLock)
         {
+            if (enabled)
+            {
+                App.StemPrefetch.EnqueueAround(_queue, Math.Max(0, _index));
+            }
+
             PlayUnlocked(track, resumePlayback ? resume : -1);
         }
     }
@@ -517,6 +528,9 @@ public sealed class AudioPlayer : IDisposable
 
             if (_vocalRemover)
             {
+                // Prefetch this track + next few so upcoming plays are already cached.
+                App.StemPrefetch.EnqueueAround(_queue, Math.Max(0, _index));
+
                 var cached = App.Stems.TryGetCachedInstrumental(track.FilePath);
                 if (cached is not null)
                 {
@@ -525,6 +539,7 @@ public sealed class AudioPlayer : IDisposable
                 }
                 else
                 {
+                    App.StemPrefetch.YieldForUrgent(track.FilePath);
                     try { _player.Stop(); } catch { /* ignore */ }
                     CurrentTrackChanged?.Invoke(this, EventArgs.Empty);
                     PositionChanged?.Invoke(this, EventArgs.Empty);

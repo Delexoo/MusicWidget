@@ -187,6 +187,10 @@ public sealed class StemSeparationService
                 throw new InvalidOperationException("Failed to start demucs-onnx.");
             }
 
+            // Keep the UI snappy while demucs runs in the background.
+            try { proc.PriorityClass = ProcessPriorityClass.BelowNormal; }
+            catch { /* priority is best-effort */ }
+
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
 

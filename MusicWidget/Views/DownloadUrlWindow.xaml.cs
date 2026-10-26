@@ -95,7 +95,7 @@ public partial class DownloadUrlWindow : Window
         else
         {
             DownloadProgress.Visibility = Visibility.Visible;
-            DownloadProgress.Value = 0;
+            ProgressValueAnimator.SnapTo(DownloadProgress, 0);
             ProgressDetailRow.Visibility = Visibility.Collapsed;
             DownloadCountText.Text = string.Empty;
             DownloadSongText.Text = string.Empty;
@@ -140,7 +140,7 @@ public partial class DownloadUrlWindow : Window
         var p = e.Update;
         if (p.Percent >= 0)
         {
-            DownloadProgress.Value = p.Percent;
+            ProgressValueAnimator.AnimateTo(DownloadProgress, p.Percent);
         }
 
         if (!string.IsNullOrWhiteSpace(p.CurrentSong))
@@ -201,7 +201,7 @@ public partial class DownloadUrlWindow : Window
                 DownloadStatus.Text = e.Success
                     ? $"Done. Starting next queued download ({e.QueueRemaining} left)..."
                     : $"{e.Error ?? "Failed."} Starting next queued download...";
-                DownloadProgress.Value = 0;
+                ProgressValueAnimator.SnapTo(DownloadProgress, 0);
             }
             else
             {
@@ -212,7 +212,7 @@ public partial class DownloadUrlWindow : Window
                  && string.Equals(next, _playlist.Name, StringComparison.OrdinalIgnoreCase))
         {
             DownloadStatus.Text = "Starting queued download...";
-            DownloadProgress.Value = 0;
+            ProgressValueAnimator.SnapTo(DownloadProgress, 0);
         }
     }
 
@@ -224,7 +224,7 @@ public partial class DownloadUrlWindow : Window
             DownloadCountText.Text = string.Empty;
             DownloadSongText.Text = string.Empty;
             ProgressDetailRow.Visibility = Visibility.Collapsed;
-            DownloadProgress.Value = 100;
+            ProgressValueAnimator.AnimateTo(DownloadProgress, 100);
         }
         else
         {

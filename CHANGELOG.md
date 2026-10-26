@@ -2,6 +2,15 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.35] - 2026-10-25
+
+### Added
+- Vocal remover **prefetches** instrumentals in the background (on download + next tracks in queue) so play is usually ready instantly
+- Smooth animated download and playback progress bars
+
+### Changed
+- Vocal remover toolchain warms up when the effect is enabled; demucs runs at lower process priority
+
 ## [2.2.34] - 2026-10-25
 
 ### Fixed

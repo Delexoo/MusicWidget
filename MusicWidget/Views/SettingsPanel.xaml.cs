@@ -684,16 +684,18 @@ public partial class SettingsPanel : UserControl
                     FooterProgressSlider.Maximum = durationMs;
                 }
 
-                // Skip tiny timer updates so the thumb doesn't stutter.
-                if (Math.Abs(FooterProgressSlider.Value - positionMs) >= 250)
+                // Smoothly ease toward the real position instead of jumping each tick.
+                if (Math.Abs(FooterProgressSlider.Value - positionMs) >= 40)
                 {
-                    FooterProgressSlider.Value = Math.Clamp(positionMs, 0, durationMs);
+                    ProgressValueAnimator.AnimateTo(
+                        FooterProgressSlider,
+                        Math.Clamp(positionMs, 0, durationMs));
                 }
             }
             else
             {
                 FooterProgressSlider.Maximum = 1;
-                FooterProgressSlider.Value = 0;
+                ProgressValueAnimator.SnapTo(FooterProgressSlider, 0);
             }
         }
         finally
@@ -707,6 +709,8 @@ public partial class SettingsPanel : UserControl
         if (e.ChangedButton == MouseButton.Left)
         {
             _scrubbingProgress = true;
+            // Stop easing so the thumb follows the pointer immediately.
+            ProgressValueAnimator.SnapTo(FooterProgressSlider, FooterProgressSlider.Value);
         }
     }
 
@@ -746,6 +750,12 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
+        // Ignore animated / timer-driven value changes — seek only happens in FinishProgressScrub.
+        if (!_scrubbingProgress && !FooterProgressSlider.IsMouseCaptureWithin)
+        {
+            return;
+        }
+
         var durationMs = App.Player.DurationMs;
         if (durationMs <= 0)
         {
@@ -754,12 +764,6 @@ public partial class SettingsPanel : UserControl
 
         var positionMs = (long)Math.Clamp(e.NewValue, 0, durationMs);
         FooterPositionLabel.Text = FormatPlaybackTime(positionMs);
-
-        // Seek once when scrubbing ends. Mid-drag seeks stutter LibVLC.
-        if (!_scrubbingProgress && !FooterProgressSlider.IsMouseCaptureWithin)
-        {
-            App.Player.SeekToMilliseconds(positionMs);
-        }
     }
 
     private void FooterVolume_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -1749,7 +1753,7 @@ public partial class SettingsPanel : UserControl
 
             if (update.Percent >= 0)
             {
-                BackgroundDownloadProgress.Value = update.Percent;
+                ProgressValueAnimator.AnimateTo(BackgroundDownloadProgress, update.Percent);
                 BackgroundDownloadPercent.Text = $"{update.Percent:0}%";
             }
 
@@ -1792,7 +1796,7 @@ public partial class SettingsPanel : UserControl
                     ? "1 song added. Starting next download..."
                     : $"{e.DownloadedCount} songs added. Starting next download...")
                 : (e.Error ?? "Something went wrong. Starting next download...");
-            BackgroundDownloadProgress.Value = 0;
+            ProgressValueAnimator.SnapTo(BackgroundDownloadProgress, 0);
             BackgroundDownloadPercent.Text = string.Empty;
             BackgroundDownloadCancelButton.IsEnabled = true;
             BackgroundDownloadCancelButton.Visibility = Visibility.Visible;
@@ -1807,7 +1811,7 @@ public partial class SettingsPanel : UserControl
             BackgroundDownloadDetail.Text = e.DownloadedCount == 1
                 ? "1 song added to your playlist."
                 : $"{e.DownloadedCount} songs added to \"{e.PlaylistName}\".";
-            BackgroundDownloadProgress.Value = 100;
+            ProgressValueAnimator.AnimateTo(BackgroundDownloadProgress, 100);
             BackgroundDownloadPercent.Text = "100%";
         }
         else if (e.Cancelled)
