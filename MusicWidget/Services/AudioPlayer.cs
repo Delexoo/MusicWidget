@@ -33,7 +33,7 @@ public sealed class AudioPlayer : IDisposable
     private bool _vocalRemover;
     private bool _playingInstrumental;
     private string _engineFilterKey = "";
-    private int _volume = 80;
+    private int _volume = 100;
     private CancellationTokenSource? _vocalSepCts;
     private int _vocalSepGeneration;
     private static readonly Random _random = new();
@@ -113,7 +113,9 @@ public sealed class AudioPlayer : IDisposable
         _bassBoostLevel = Math.Clamp(App.Settings.Current.BassBoostLevel, 0, 3);
         _reverb = App.Settings.Current.Reverb;
         _vocalRemover = App.Settings.Current.VocalRemover;
-        _volume = Math.Clamp(App.Settings.Current.Volume, 0, MaxVolume);
+        // Volume is session-only — always launch at 100% (like playback speed).
+        _volume = 100;
+        App.Settings.Current.Volume = 100;
 
         CreateEngine(BuildFilterKey(_reverb), wireEvents: true);
 
@@ -194,10 +196,15 @@ public sealed class AudioPlayer : IDisposable
 
         EffectsChanged?.Invoke(this, EventArgs.Empty);
 
+        // Only extract when the user turns vocal remover on — never during downloads.
         App.StemPrefetch.SetEnabled(enabled);
         if (enabled)
         {
             _ = App.StemPrefetch.WarmToolsAsync();
+            if (track is not null)
+            {
+                App.StemPrefetch.Enqueue(track.FilePath, highPriority: true);
+            }
         }
 
         if (track is null)
@@ -209,11 +216,6 @@ public sealed class AudioPlayer : IDisposable
         CancelVocalSeparation();
         lock (_playbackLock)
         {
-            if (enabled)
-            {
-                App.StemPrefetch.EnqueueAround(_queue, Math.Max(0, _index));
-            }
-
             PlayUnlocked(track, resumePlayback ? resume : -1);
         }
     }
@@ -300,13 +302,38 @@ public sealed class AudioPlayer : IDisposable
 
     private void WirePlayerEvents()
     {
-        _onPlayingHandler = (_, _) => PlayStateChanged?.Invoke(this, EventArgs.Empty);
+        // LibVLC often resets volume/rate when a new media starts — re-apply on Playing.
+        _onPlayingHandler = (_, _) =>
+        {
+            ReapplyPlaybackState();
+            PlayStateChanged?.Invoke(this, EventArgs.Empty);
+        };
         _onPausedHandler = (_, _) => PlayStateChanged?.Invoke(this, EventArgs.Empty);
         _player.EndReached += OnEndReached;
         _player.Playing += _onPlayingHandler;
         _player.Paused += _onPausedHandler;
         _player.Stopped += OnStopped;
         _player.TimeChanged += OnTimeChanged;
+    }
+
+    /// <summary>Re-applies volume, rate, and EQ so next-track / engine swaps keep user settings.</summary>
+    private void ReapplyPlaybackState()
+    {
+        if (_disposed || _player is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _player.Volume = _volume;
+            _player.SetRate(_rate);
+            ApplyEqualizer();
+        }
+        catch
+        {
+            /* best-effort */
+        }
     }
 
     private void TearDownEngine(bool unsubscribe)
@@ -578,16 +605,29 @@ public sealed class AudioPlayer : IDisposable
             return;
         }
 
-        try
+        ReapplyPlaybackState();
+
+        // LibVLC can overwrite volume/rate shortly after Play — reinforce once audio is live.
+        ThreadPool.QueueUserWorkItem(_ =>
         {
-            _player.SetRate(_rate);
-            _player.Volume = _volume;
-            ApplyEqualizer();
-        }
-        catch
-        {
-            /* rate / FX re-apply is best-effort */
-        }
+            Thread.Sleep(120);
+            try
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                lock (_playbackLock)
+                {
+                    ReapplyPlaybackState();
+                }
+            }
+            catch
+            {
+                /* best-effort */
+            }
+        });
 
         if (resumePositionMs >= 0)
         {
@@ -610,6 +650,7 @@ public sealed class AudioPlayer : IDisposable
                     }
 
                     _player.Time = pos;
+                    ReapplyPlaybackState();
                 }
                 catch
                 {

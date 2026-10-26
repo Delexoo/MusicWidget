@@ -82,7 +82,7 @@ public partial class SettingsPanel : UserControl
     private bool _updateInstallInFlight;
     private bool _suppressEffectToggle;
     private bool _suppressKeepOpenToggle;
-    private int _lastNonZeroVolume = 80;
+    private int _lastNonZeroVolume = 100;
     private DispatcherTimer? _progressTimer;
     private DispatcherTimer? _backgroundDownloadHideTimer;
     private EventHandler? _backgroundDownloadHideTick;
@@ -315,13 +315,15 @@ public partial class SettingsPanel : UserControl
 
     private void InitializeFooter()
     {
-        var v = Math.Clamp(App.Player.Volume, 0, AudioPlayer.MaxVolume);
-        if (v > 0) _lastNonZeroVolume = v;
+        // Always launch at 100% volume (session-only, like speed).
+        App.Player.Volume = 100;
+        App.Settings.Current.Volume = 100;
+        _lastNonZeroVolume = 100;
 
         _suppressVolumeChanged = true;
-        FooterVolumeSlider.Value = v;
+        FooterVolumeSlider.Value = 100;
         _suppressVolumeChanged = false;
-        UpdateFooterVolumeLabel(v);
+        UpdateFooterVolumeLabel(100);
 
         // Always show/apply normal speed on launch (speed is not restored across sessions).
         App.Player.SetRate(1f);
@@ -636,7 +638,7 @@ public partial class SettingsPanel : UserControl
         }
         else
         {
-            FooterVolumeSlider.Value = _lastNonZeroVolume > 0 ? _lastNonZeroVolume : 50;
+            FooterVolumeSlider.Value = _lastNonZeroVolume > 0 ? _lastNonZeroVolume : 100;
         }
     }
 

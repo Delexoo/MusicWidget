@@ -230,8 +230,6 @@ public sealed class BackgroundDownloadService
                 if (!string.IsNullOrWhiteSpace(p.CompletedFilePath))
                 {
                     App.PlaylistOrders.AppendToOrder(playlist.Name, [p.CompletedFilePath]);
-                    // Build instrumental while the download finishes so play is ready.
-                    App.StemPrefetch.Enqueue(p.CompletedFilePath);
                 }
 
                 if (p.RefreshPlaylistTracks || !string.IsNullOrWhiteSpace(p.CompletedFilePath))
@@ -277,10 +275,6 @@ public sealed class BackgroundDownloadService
                 if (downloadedOrder.Count > 0)
                 {
                     App.PlaylistOrders.MergeDownloadOrder(playlist.Name, downloadedOrder);
-                    foreach (var path in downloadedOrder)
-                    {
-                        App.StemPrefetch.Enqueue(path);
-                    }
                 }
 
                 App.Playlists.RequestTracksRefresh(playlist.Name);

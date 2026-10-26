@@ -2,6 +2,15 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.37] - 2026-10-25
+
+### Changed
+- Volume always starts at **100%** on launch (session-only, like speed)
+- Vocal remover is labeled **beta**; instrumentals are built when you toggle it on — not during downloads (faster downloads)
+
+### Fixed
+- Volume, speed, and EQ are re-applied when the next track starts (LibVLC was resetting them)
+
 ## [2.2.36] - 2026-10-25
 
 ### Fixed

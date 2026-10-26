@@ -12,7 +12,10 @@ public sealed class AppSettings
 
     public string? CurrentPlaylist { get; set; }
 
-    public int Volume { get; set; } = 80;
+    /// <summary>
+    /// Session volume (0–200). Always reset to 100 on launch; not restored from disk.
+    /// </summary>
+    public int Volume { get; set; } = 100;
 
     /// <summary>
     /// Current-session playback rate (0.5–2.0). Always reset to 1.0 on launch;

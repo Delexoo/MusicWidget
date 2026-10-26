@@ -1179,8 +1179,8 @@
                               Unchecked="EffectReverb_Changed"/>
                 <ToggleButton x:Name="EffectVocalRemoverButton"
                               Style="{StaticResource EffectChipToggle}"
-                              Content="Vocal remover"
-                              ToolTip="AI vocal remover (demucs). First use downloads tools/models; each new track is processed once and cached. Playlist files are not changed."
+                              Content="Vocal remover · beta"
+                              ToolTip="Beta — AI vocal remover (demucs). Runs when you turn it on (not during downloads). First use downloads tools/models; each track is processed once and cached. Playlist files are not changed."
                               Checked="EffectVocalRemover_Changed"
                               Unchecked="EffectVocalRemover_Changed"/>
               </StackPanel>
@@ -1409,7 +1409,7 @@
                         Maximum="200"
                         SmallChange="1"
                         LargeChange="10"
-                        Value="80"
+                        Value="100"
                         Height="24"
                         VerticalAlignment="Center"
                         IsMoveToPointEnabled="True"
@@ -1420,7 +1420,7 @@
                         ToolTip="Volume (100% = normal, up to 200% boost)"/>
                 <TextBlock x:Name="FooterVolumeLabel"
                            Grid.Column="2"
-                           Text="80%"
+                           Text="100%"
                            Foreground="{StaticResource Brush.TextDim}"
                            FontFamily="{StaticResource Font.Mono}"
                            FontSize="10.5"

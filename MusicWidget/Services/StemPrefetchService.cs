@@ -110,7 +110,7 @@ public sealed class StemPrefetchService
             return;
         }
 
-        // Auto-enable when VocalRemover is on in settings (covers download hooks).
+        // Auto-enable when VocalRemover is already on (toggle / play path — never downloads).
         if (!_enabled && App.Settings.Current.VocalRemover)
         {
             SetEnabled(true);
