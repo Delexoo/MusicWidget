@@ -2,6 +2,14 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.38] - 2026-11-10
+
+### Added
+- Right-click a song → **Move to playlist** (or **Add to playlist** from Liked/Saves)
+
+### Fixed
+- Downloads no longer freeze the whole window (worker no longer runs on the UI thread; progress updates are coalesced)
+
 ## [2.2.37] - 2026-10-25
 
 ### Changed

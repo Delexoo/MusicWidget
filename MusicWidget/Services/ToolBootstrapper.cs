@@ -627,16 +627,24 @@ public sealed class ToolBootstrapper
             var buffer = new byte[81920];
             long read = 0;
             int n;
+            long lastReportTicks = 0;
             while ((n = await src.ReadAsync(buffer, ct)) > 0)
             {
                 await dst.WriteAsync(buffer.AsMemory(0, n), ct);
                 read += n;
                 if (total > 0 && progress is not null)
                 {
-                    var frac = (double)read / total;
-                    var pct = progressFrom + (progressTo - progressFrom) * frac;
-                    progress.Report(new DownloadProgressUpdate(pct,
-                        $"{label}: {read / (1024 * 1024):N1} MB / {total / (1024 * 1024):N1} MB"));
+                    var now = Environment.TickCount64;
+                    var isDone = read >= total;
+                    // Cap UI chatter while pulling large tool zips (ffmpeg ~80MB).
+                    if (isDone || now - lastReportTicks >= 250)
+                    {
+                        lastReportTicks = now;
+                        var frac = (double)read / total;
+                        var pct = progressFrom + (progressTo - progressFrom) * frac;
+                        progress.Report(new DownloadProgressUpdate(pct,
+                            $"{label}: {read / (1024 * 1024):N1} MB / {total / (1024 * 1024):N1} MB"));
+                    }
                 }
             }
         }

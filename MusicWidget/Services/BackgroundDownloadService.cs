@@ -163,7 +163,9 @@ public sealed class BackgroundDownloadService
 
         if (startWorker)
         {
-            _ = ProcessQueueAsync();
+            // Never run the download pipeline on the UI thread — EnsurePlaylistFolder /
+            // EnumerateFiles / progress disk writes before the first await used to freeze the window.
+            _ = Task.Run(ProcessQueueAsync);
         }
 
         return true;
@@ -339,6 +341,12 @@ public sealed class BackgroundDownloadService
     private void Report(string playlistName, DownloadProgressUpdate update) =>
         RaiseProgress(playlistName, update);
 
+    private DownloadProgressUpdate? _coalescedUpdate;
+    private string? _coalescedPlaylist;
+    private int _coalescedRemaining;
+    private int _uiFlushScheduled;
+    private long _lastUiFlushTicks;
+
     private void RaiseProgress(string playlistName, DownloadProgressUpdate update)
     {
         if (update.Percent >= 0)
@@ -357,13 +365,101 @@ public sealed class BackgroundDownloadService
             }
         }
 
+        // Coalesce high-frequency tool/yt-dlp progress onto the UI so the dispatcher
+        // isn't flooded (which made the whole window feel frozen).
         var remaining = QueueCount;
+        var forceImmediate = update.Percent >= 100
+            || update.Percent < 0
+            || !string.IsNullOrWhiteSpace(update.CompletedFilePath)
+            || update.RefreshPlaylistTracks;
+
+        lock (_sync)
+        {
+            _coalescedPlaylist = playlistName;
+            _coalescedUpdate = update;
+            _coalescedRemaining = remaining;
+        }
+
+        if (forceImmediate)
+        {
+            FlushProgressToUi();
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _uiFlushScheduled, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var now = Environment.TickCount64;
+                var wait = Math.Max(0, 120 - (int)(now - _lastUiFlushTicks));
+                if (wait > 0)
+                {
+                    await Task.Delay(wait).ConfigureAwait(false);
+                }
+
+                FlushProgressToUi();
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write(ex, "BackgroundDownloadService.RaiseProgressFlush");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _uiFlushScheduled, 0);
+                lock (_sync)
+                {
+                    if (_coalescedUpdate is not null
+                        && Interlocked.CompareExchange(ref _uiFlushScheduled, 1, 0) == 0)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await Task.Delay(120).ConfigureAwait(false);
+                                FlushProgressToUi();
+                            }
+                            finally
+                            {
+                                Interlocked.Exchange(ref _uiFlushScheduled, 0);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    private void FlushProgressToUi()
+    {
+        string? playlistName;
+        DownloadProgressUpdate? update;
+        int remaining;
+        lock (_sync)
+        {
+            playlistName = _coalescedPlaylist;
+            update = _coalescedUpdate;
+            remaining = _coalescedRemaining;
+            _coalescedUpdate = null;
+        }
+
+        if (playlistName is null || update is null)
+        {
+            return;
+        }
+
+        _lastUiFlushTicks = Environment.TickCount64;
+        var snapshot = update.Value;
         UiDispatcher.BeginInvokeSafe(() =>
         {
             ProgressChanged?.Invoke(this, new BackgroundDownloadProgressEventArgs
             {
                 PlaylistName = playlistName,
-                Update = update,
+                Update = snapshot,
                 QueueRemaining = remaining,
             });
         }, System.Windows.Threading.DispatcherPriority.Background);

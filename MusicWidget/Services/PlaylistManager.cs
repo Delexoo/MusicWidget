@@ -322,6 +322,86 @@ public sealed class PlaylistManager
     }
 
     /// <summary>
+    /// Moves a track file from one on-disk playlist into another, updating orders and
+    /// Liked/Saves path pointers. Returns the new absolute path.
+    /// </summary>
+    public string MoveTrackToPlaylist(string sourcePlaylistName, string destPlaylistName, string sourceFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePlaylistName)
+            || string.IsNullOrWhiteSpace(destPlaylistName)
+            || string.IsNullOrWhiteSpace(sourceFilePath))
+        {
+            throw new ArgumentException("Missing playlist or file path.");
+        }
+
+        if (string.Equals(sourcePlaylistName, destPlaylistName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("That song is already in this playlist.");
+        }
+
+        if (!File.Exists(sourceFilePath))
+        {
+            throw new FileNotFoundException("Track no longer exists.", sourceFilePath);
+        }
+
+        var destDir = EnsurePlaylistFolder(destPlaylistName);
+        var fileName = Path.GetFileName(sourceFilePath);
+        var destPath = Path.Combine(destDir, fileName);
+        if (File.Exists(destPath))
+        {
+            var stem = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            var i = 2;
+            do
+            {
+                destPath = Path.Combine(destDir, $"{stem} ({i}){ext}");
+                i++;
+            }
+            while (File.Exists(destPath));
+        }
+
+        File.Move(sourceFilePath, destPath);
+        _orders.RemovePath(sourcePlaylistName, sourceFilePath);
+        _orders.AppendToOrder(destPlaylistName, [destPath]);
+
+        try { App.LikedSongs.ReplacePath(sourceFilePath, destPath); } catch { /* best-effort */ }
+        try { App.SavedSongs.ReplacePath(sourceFilePath, destPath); } catch { /* best-effort */ }
+
+        PlaylistTracksChanged?.Invoke(this, sourcePlaylistName);
+        PlaylistTracksChanged?.Invoke(this, destPlaylistName);
+        return destPath;
+    }
+
+    /// <summary>
+    /// Copies a track into another on-disk playlist (used from Liked/Saves). Returns the new path.
+    /// </summary>
+    public string CopyTrackToPlaylist(string destPlaylistName, string sourceFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(destPlaylistName) || string.IsNullOrWhiteSpace(sourceFilePath))
+        {
+            throw new ArgumentException("Missing playlist or file path.");
+        }
+
+        if (!File.Exists(sourceFilePath))
+        {
+            throw new FileNotFoundException("Track no longer exists.", sourceFilePath);
+        }
+
+        var destDir = EnsurePlaylistFolder(destPlaylistName);
+        var fileName = Path.GetFileName(sourceFilePath);
+        var destPath = Path.Combine(destDir, fileName);
+        if (File.Exists(destPath))
+        {
+            throw new InvalidOperationException($"\"{fileName}\" is already in \"{destPlaylistName}\".");
+        }
+
+        File.Copy(sourceFilePath, destPath);
+        _orders.AppendToOrder(destPlaylistName, [destPath]);
+        PlaylistTracksChanged?.Invoke(this, destPlaylistName);
+        return destPath;
+    }
+
+    /// <summary>
     /// Copies multiple audio files into the playlist folder. Skips non-audio paths, missing files, and duplicates.
     /// </summary>
     public (int Added, int Skipped) AddTracksFromFiles(string playlistName, IEnumerable<string> filePaths)

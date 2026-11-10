@@ -337,6 +337,18 @@
                 Width="13" Height="13"/>
         </MenuItem.Icon>
       </MenuItem>
+      <MenuItem x:Name="TrackContextMoveRoot"
+                Header="Move to playlist"
+                Tag="move-root">
+        <MenuItem.Icon>
+          <Path Data="{StaticResource Icon.Folder}"
+                Fill="{StaticResource Brush.Text}"
+                Stretch="Uniform"
+                Width="13" Height="13"/>
+        </MenuItem.Icon>
+        <!-- Populated on Opened with other playlists -->
+        <MenuItem Header="(none)" IsEnabled="False"/>
+      </MenuItem>
       <Separator/>
       <MenuItem Header="Show in File Explorer"
                 Click="TrackContextShowInExplorer_Click">

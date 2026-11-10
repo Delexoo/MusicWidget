@@ -1684,6 +1684,31 @@ public partial class SettingsPanel : UserControl
         _ = SelectPlaylistByNameAsync(playlistName);
     }
 
+    /// <summary>
+    /// Selects a playlist in the list without immediately reloading/artwork-hydrating tracks.
+    /// Used during active downloads so progress updates stay responsive.
+    /// </summary>
+    private void SelectPlaylistByNameLight(string playlistName)
+    {
+        var cached = FindPlaylistByName(playlistName);
+        if (cached is null || !_isPanelActive)
+        {
+            return;
+        }
+
+        try
+        {
+            _handlingPlaylistSelection = true;
+            PlaylistsList.SelectedItem = cached;
+        }
+        finally
+        {
+            _handlingPlaylistSelection = false;
+        }
+
+        App.Playlists.SetCurrentPlaylist(cached.Name);
+    }
+
     private async Task SelectPlaylistByNameAsync(string playlistName)
     {
         var cached = FindPlaylistByName(playlistName);
@@ -1733,10 +1758,11 @@ public partial class SettingsPanel : UserControl
 
         try
         {
+            // Avoid forcing a full playlist refresh on every progress tick — that froze the UI.
             if (!string.Equals(_backgroundDownloadPlaylistName, e.PlaylistName, StringComparison.OrdinalIgnoreCase))
             {
                 _backgroundDownloadPlaylistName = e.PlaylistName;
-                SelectPlaylistByName(e.PlaylistName);
+                SelectPlaylistByNameLight(e.PlaylistName);
             }
 
             var update = e.Update;
@@ -1755,7 +1781,8 @@ public partial class SettingsPanel : UserControl
 
             if (update.Percent >= 0)
             {
-                ProgressValueAnimator.AnimateTo(BackgroundDownloadProgress, update.Percent);
+                // Coalesced updates are already throttled; snap keeps the UI thread light.
+                ProgressValueAnimator.SnapTo(BackgroundDownloadProgress, update.Percent);
                 BackgroundDownloadPercent.Text = $"{update.Percent:0}%";
             }
 
@@ -2811,6 +2838,7 @@ public partial class SettingsPanel : UserControl
         MenuItem? editItem = null;
         MenuItem? deleteItem = null;
         System.Windows.Shapes.Path? deleteIcon = null;
+        MenuItem? moveRoot = null;
 
         foreach (var obj in cm.Items)
         {
@@ -2819,6 +2847,7 @@ public partial class SettingsPanel : UserControl
                 if (Equals(mi.Tag, "like")) { likeItem = mi; likeIcon = mi.Icon as System.Windows.Shapes.Path; }
                 else if (Equals(mi.Tag, "edit")) editItem = mi;
                 else if (Equals(mi.Tag, "delete")) { deleteItem = mi; deleteIcon = mi.Icon as System.Windows.Shapes.Path; }
+                else if (Equals(mi.Tag, "move-root")) moveRoot = mi;
             }
             else if (obj is Separator sep && Equals(sep.Tag, "before-edit"))
             {
@@ -2841,6 +2870,8 @@ public partial class SettingsPanel : UserControl
         var active = GetActivePlaylist();
         bool isVirtual = active is not null && active.Kind != PlaylistKind.Normal;
         bool isLiked = active is not null && active.Kind == PlaylistKind.Liked;
+
+        PopulateTrackMoveSubmenu(moveRoot, t, active);
 
         if (beforeEdit is not null) beforeEdit.Visibility = isVirtual ? Visibility.Collapsed : Visibility.Visible;
         if (editItem is not null) editItem.Visibility = isVirtual ? Visibility.Collapsed : Visibility.Visible;
@@ -2868,6 +2899,89 @@ public partial class SettingsPanel : UserControl
                 deleteIcon.Fill = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
             }
             if (deleteItem is not null) deleteItem.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void PopulateTrackMoveSubmenu(MenuItem? moveRoot, Track track, Playlist? active)
+    {
+        if (moveRoot is null)
+        {
+            return;
+        }
+
+        moveRoot.Items.Clear();
+
+        var targets = App.Playlists.GetPlaylists()
+            .Where(p => p.Kind == PlaylistKind.Normal)
+            .Where(p => active is null
+                        || active.Kind != PlaylistKind.Normal
+                        || !string.Equals(p.Name, active.Name, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var canMoveFile = active is not null && active.Kind == PlaylistKind.Normal;
+        moveRoot.Header = canMoveFile ? "Move to playlist" : "Add to playlist";
+
+        if (targets.Count == 0)
+        {
+            moveRoot.Items.Add(new MenuItem
+            {
+                Header = "No other playlists",
+                IsEnabled = false,
+            });
+            return;
+        }
+
+        foreach (var dest in targets)
+        {
+            var item = new MenuItem
+            {
+                Header = dest.Name,
+                Tag = dest.Name,
+            };
+            item.Click += (_, _) => TrackContextMoveToPlaylist_Click(track, active, dest.Name, canMoveFile);
+            moveRoot.Items.Add(item);
+        }
+    }
+
+    private void TrackContextMoveToPlaylist_Click(Track track, Playlist? source, string destName, bool moveFile)
+    {
+        if (string.IsNullOrWhiteSpace(destName) || !File.Exists(track.FilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var oldPath = track.FilePath;
+            string newPath;
+            if (moveFile && source is not null && source.Kind == PlaylistKind.Normal)
+            {
+                newPath = App.Playlists.MoveTrackToPlaylist(source.Name, destName, oldPath);
+            }
+            else
+            {
+                newPath = App.Playlists.CopyTrackToPlaylist(destName, oldPath);
+            }
+
+            // If this was the current song, keep playing from the new path.
+            if (moveFile
+                && string.Equals(App.Player.CurrentTrack?.FilePath, oldPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var resume = App.Player.PositionMs;
+                App.Player.Play(new Track(newPath), resume >= 0 ? resume : -1);
+            }
+
+            if (moveFile && source is not null)
+            {
+                RefreshAfterDownload(source.Name);
+            }
+
+            RefreshAfterDownload(destName);
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.ShowWarning(ex.Message);
         }
     }
 
