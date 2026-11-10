@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Beats. Please fill in as much detail as you can.
+        Thanks for helping improve MusicWidget. Please fill in as much detail as you can.
 
   - type: input
     id: version
@@ -59,6 +59,6 @@ body:
     id: logs
     attributes:
       label: Logs or screenshots
-      description: Crash logs are saved to `%APPDATA%\Beats\` when available
+      description: Crash logs are saved to `%APPDATA%\MusicWidget\` when available
     validations:
       required: false

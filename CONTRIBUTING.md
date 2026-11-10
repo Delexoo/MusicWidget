@@ -1,11 +1,11 @@
-# Contributing to Windows Beats
+# Contributing to MusicWidget
 
-Thank you for your interest in improving **Windows Beats**. This project is maintained by [Delexoo](https://github.com/Delexoo).
+Thank you for your interest in improving **MusicWidget**. This project is maintained by [Delexoo](https://github.com/Delexoo).
 
 ## Ways to help
 
-- **Report bugs** — [Open an issue](https://github.com/Delexoo/MusicWidget/issues/new?template=bug_report.md) with steps to reproduce, Windows version, and MusicWidget version.
-- **Suggest features** — [Open a feature request](https://github.com/Delexoo/MusicWidget/issues/new?template=feature_request.md) describing the problem and your proposed solution.
+- **Report bugs** — [Open an issue](https://github.com/Delexoo/MusicWidget/issues/new?template=bug_report.yml) with steps to reproduce, Windows version, and MusicWidget version.
+- **Suggest features** — [Open a feature request](https://github.com/Delexoo/MusicWidget/issues/new?template=feature_request.yml) describing the problem and your proposed solution.
 - **Improve docs** — README, [help page](https://delexoo.github.io/MusicWidget/help.html), or in-app copy.
 - **Submit code** — fork the repo, branch from `main`, and open a pull request.
 
@@ -15,7 +15,7 @@ Thank you for your interest in improving **Windows Beats**. This project is main
 
 ```powershell
 git clone https://github.com/Delexoo/MusicWidget.git
-cd beats
+cd MusicWidget
 dotnet restore
 dotnet build -c Release
 dotnet run --project MusicWidget -c Release
@@ -40,9 +40,4 @@ Tagged releases (`v*`) trigger GitHub Actions to build `MusicWidget-Setup-x64.ex
 
 ## Code of conduct
 
-Be respectful and constructive. Harassment or spam will not be tolerated.
-
-## Questions
-
-- **User guide:** [delexoo.github.io/MusicWidget/help.html](https://delexoo.github.io/MusicWidget/help.html)
-- **Issues:** [github.com/Delexoo/MusicWidget/issues](https://github.com/Delexoo/MusicWidget/issues)
+Be respectful in issues and pull requests. Harassment or bad-faith contributions will not be accepted.

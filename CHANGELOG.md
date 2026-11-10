@@ -7,6 +7,9 @@ All notable changes to **MusicWidget** are documented here. The format is based 
 ### Added
 - System tray icon in Windows **Show hidden icons** (show/hide, open dashboard, exit)
 
+### Changed
+- GitHub release workflow, docs, and landing page fully branded as **MusicWidget** (no leftover Beats release titles)
+
 ## [2.2.40] - 2026-11-10
 
 ### Removed

@@ -129,7 +129,7 @@ public sealed class UpdateService
     }
 
     /// <summary>
-    /// Spawns a background updater, closes Beats immediately, then installs and relaunches.
+    /// Spawns a background updater, closes MusicWidget immediately, then installs and relaunches.
     /// </summary>
     public bool BeginDetachedUpdateAndShutdown(UpdateCheckResult update)
     {

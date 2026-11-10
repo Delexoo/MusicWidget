@@ -110,7 +110,7 @@ The site lives in the [`website/`](website/) folder and deploys automatically wh
 > **Live demo:** open the [project website](https://delexoo.github.io/MusicWidget/) for an interactive preview of the widget on a Windows 11 desktop.
 
 <!-- Add a screenshot once available, e.g.:
-![Beats widget on desktop](docs/screenshot.png)
+![MusicWidget widget on desktop](docs/screenshot.png)
 -->
 
 ---
@@ -128,7 +128,7 @@ The site lives in the [`website/`](website/) folder and deploys automatically wh
 4. **Create a playlist** - use **New Playlist** in the dashboard sidebar.
 5. **Add music** - drag files into a playlist folder, or paste a URL to download.
 
-On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) `spotDL` into `%APPDATA%\MusicWidget\tools`. This is a one-time setup (~130 MB total).
+On first download, MusicWidget silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) `spotDL` into `%APPDATA%\MusicWidget\tools`. This is a one-time setup (~130 MB total).
 
 </details>
 
@@ -140,10 +140,10 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 
 | Category | Highlights |
 |---|---|
-| **Widget** | Always on top | draggable | no taskbar icon | hover to expand loop & settings |
-| **Dashboard** | Playlists | track list | seek bar | volume | liked & saved songs |
+| **Widget** | Always on top | draggable | system tray icon | hover to expand loop & settings |
+| **Dashboard** | Playlists | track list | seek bar | volume | Liked Songs |
 | **Playback** | Play / pause | previous / next | shuffle | loop current | LibVLC engine |
-| **Dashboard** | Folder playlists | pin favorites | custom sort order | live folder watching |
+| **Library** | Folder playlists | pin favorites | custom sort order | live folder watching |
 | **Downloads** | YouTube | Spotify | TikTok | SoundCloud | Instagram | 1000+ sites via yt-dlp |
 | **Quality of life** | Global hotkeys | top chevron hide tab | resizable dashboard | crash logging |
 
@@ -264,7 +264,7 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 
 <br />
 
-Beats delegates generic URLs to [yt-dlp](https://github.com/yt-dlp/yt-dlp), which supports **1,000+ sites**. If yt-dlp can extract audio from a link, Beats can download it as MP3.
+MusicWidget delegates generic URLs to [yt-dlp](https://github.com/yt-dlp/yt-dlp), which supports **1,000+ sites**. If yt-dlp can extract audio from a link, MusicWidget can download it as MP3.
 
 Spotify links always route through spotDL regardless of URL pattern.
 
@@ -294,7 +294,7 @@ Download the latest release:
 
 **[MusicWidget-Setup-x64.exe](https://github.com/Delexoo/MusicWidget/releases/latest/download/MusicWidget-Setup-x64.exe)**
 
-The installer registers Beats in the Start menu and handles the .NET 8 Desktop Runtime dependency.
+The installer registers MusicWidget in the Start menu and handles the .NET 8 Desktop Runtime dependency.
 
 </details>
 
@@ -303,7 +303,7 @@ The installer registers Beats in the Start menu and handles the .NET 8 Desktop R
 
 <br />
 
-On the first web download, Beats automatically downloads these tools into `%APPDATA%\MusicWidget\tools`:
+On the first web download, MusicWidget automatically downloads these tools into `%APPDATA%\MusicWidget\tools`:
 
 | Tool | Size (approx.) | Purpose |
 |---|---|---|
@@ -353,7 +353,7 @@ After the initial bootstrap, all downloads run locally with no additional setup.
 └── ...
 ```
 
-Each subfolder is a playlist. Add, remove, or rename files directly in Explorer - Beats picks up changes automatically.
+Each subfolder is a playlist. Add, remove, or rename files directly in Explorer - MusicWidget picks up changes automatically.
 
 </details>
 
@@ -409,7 +409,7 @@ flowchart LR
 ## Project structure
 
 ```
-beats/
+MusicWidget/
 ├── MusicWidget/              # WPF application (AssemblyName: MusicWidget)
 │   ├── Views/                # Widget, dashboard, dialogs
 │   ├── Services/             # Audio, downloads, playlists, hotkeys, updates
@@ -436,7 +436,7 @@ beats/
 
 ```powershell
 git clone https://github.com/Delexoo/MusicWidget.git
-cd beats
+cd MusicWidget
 dotnet restore
 dotnet build -c Release
 dotnet run --project MusicWidget -c Release
@@ -499,9 +499,9 @@ Live URL: **[delexoo.github.io/MusicWidget](https://delexoo.github.io/MusicWidge
 
 <br />
 
-YouTube occasionally blocks automated downloads. In the dashboard help section, follow the **YouTube cookies** guide to export a Netscape-format `cookies.txt` from your browser and point Beats to it in settings.
+YouTube occasionally blocks automated downloads. In the dashboard help section, follow the **YouTube cookies** guide to export a Netscape-format `cookies.txt` from your browser and point MusicWidget to it in settings.
 
-Beats also retries with multiple yt-dlp player clients automatically before giving up.
+MusicWidget also retries with multiple yt-dlp player clients automatically before giving up.
 
 </details>
 
@@ -528,7 +528,7 @@ The first Spotify download also bootstraps spotDL and its Deno dependency. Subse
 
 <br />
 
-Beats writes crash logs to `%APPDATA%\MusicWidget\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/MusicWidget/issues).
+MusicWidget writes crash logs to `%APPDATA%\MusicWidget\` for unexpected errors. Include these when [opening an issue](https://github.com/Delexoo/MusicWidget/issues).
 
 </details>
 
@@ -546,11 +546,11 @@ Copyright © 2026 [Delexo](https://delexo.store) | [@Delexoo on GitHub](https://
 
 ## Acknowledgments
 
-Beats builds on excellent open-source projects. Thank you to the authors, maintainers, and contributors of each project below.
+MusicWidget builds on excellent open-source projects. Thank you to the authors, maintainers, and contributors of each project below.
 
 **Core download and playback**
 
-| Project | Role in Beats |
+| Project | Role in MusicWidget |
 |---|---|
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Primary web media extraction engine (YouTube, Instagram, TikTok, and 1,000+ sites) |
 | [spotDL](https://github.com/spotDL/spotify-downloader) | Spotify track, album, and playlist downloads with metadata |
