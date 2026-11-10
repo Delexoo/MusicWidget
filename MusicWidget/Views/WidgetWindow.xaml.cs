@@ -785,6 +785,34 @@ public partial class WidgetWindow : Window
         ToggleVisibility();
     }
 
+    /// <summary>Shows the floating widget if it was hidden (tray / notification area).</summary>
+    public void EnsureVisibleFromTray()
+    {
+        if (!IsLogicallyVisible)
+        {
+            ToggleVisibility();
+        }
+
+        try
+        {
+            Activate();
+        }
+        catch
+        {
+            /* activation is best-effort */
+        }
+    }
+
+    /// <summary>Shows the widget and opens the dashboard from the tray icon.</summary>
+    public void OpenDashboardFromTray()
+    {
+        EnsureVisibleFromTray();
+        if (!_settingsExpanded && !_animatingSettings)
+        {
+            ToggleSettings();
+        }
+    }
+
     /// <summary>
     /// Closes only the dashboard panel, leaving the floating player widget visible.
     /// </summary>

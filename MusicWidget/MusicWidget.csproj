@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -23,9 +24,9 @@
 
     <!-- Version + author metadata is shown in Explorer's file properties and
          picked up by Inno Setup via the {#GetVersionString(...)} preprocessor. -->
-    <Version>2.2.40</Version>
-    <AssemblyVersion>2.2.40.0</AssemblyVersion>
-    <FileVersion>2.2.40.0</FileVersion>
+    <Version>2.2.41</Version>
+    <AssemblyVersion>2.2.41.0</AssemblyVersion>
+    <FileVersion>2.2.41.0</FileVersion>
     <Product>MusicWidget</Product>
     <Company>Delexo</Company>
     <Authors>Delexo</Authors>
@@ -52,6 +53,16 @@
     <PackageReference Include="LibVLCSharp" Version="3.8.5" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
+  </ItemGroup>
+
+  <!-- WinForms is only for the tray icon — keep its namespaces out of WPF files. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Drawing.Imaging" />
+    <Using Remove="System.Drawing.Drawing2D" />
+    <Using Remove="System.Drawing.Text" />
+    <Using Remove="System.Drawing.Printing" />
   </ItemGroup>
 
 </Project>

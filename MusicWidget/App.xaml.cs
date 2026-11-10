@@ -25,6 +25,7 @@ public partial class App : Application
     public static UpdateService Updates { get; private set; } = null!;
     public static TrackListStore LikedSongs { get; private set; } = null!;
     public static PlaylistOrderStore PlaylistOrders { get; private set; } = null!;
+    public static TrayIconService TrayIcon { get; private set; } = null!;
 
     public static string AppDataDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -138,6 +139,9 @@ public partial class App : Application
             widget.Show();
             toggle.Show();
 
+            TrayIcon = new TrayIconService();
+            TrayIcon.Attach(widget);
+
             _ = Updates.CheckForUpdatesOnStartupAsync();
         }
         catch (Exception ex)
@@ -173,6 +177,7 @@ public partial class App : Application
     {
         try
         {
+            TrayIcon?.Dispose();
             StemPrefetch?.Clear();
             Player?.Dispose();
             Settings?.Save();
