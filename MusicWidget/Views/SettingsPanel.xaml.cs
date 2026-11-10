@@ -2592,48 +2592,85 @@ public partial class SettingsPanel : UserControl
         }
     }
 
-    private void TracksList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    /// <summary>
+    /// Dashboard scroll lives on <see cref="PlaylistsScrollViewer"/>. The playlist ListBox
+    /// used to swallow wheel events while its own scrolling was disabled, so the panel felt stuck.
+    /// </summary>
+    private void PlaylistsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            e.Handled = true;
-            var step = e.Delta > 0 ? TracksZoomStep : -TracksZoomStep;
-            TracksZoom = Math.Clamp(TracksZoom + step, TracksZoomMin, TracksZoomMax);
-            App.Settings.Current.TracksListZoom = TracksZoom;
-            App.Settings.Save();
-            return;
-        }
-
-        // Scroll the list — never change the selected song on wheel.
-        if (sender is not ListBox list)
-        {
-            return;
-        }
-
-        var nested = FindDescendantScrollViewer(list);
-        if (nested is not null)
-        {
-            var scrollingUp = e.Delta > 0;
-            var canScrollNested = scrollingUp
-                ? nested.VerticalOffset > 0.5
-                : nested.VerticalOffset < nested.ScrollableHeight - 0.5;
-
-            if (canScrollNested)
-            {
-                // Let the nested track list scroll normally.
-                return;
-            }
-        }
-
-        // At the nested edge (or no overflow): scroll the outer playlists panel.
         if (PlaylistsScrollViewer is null)
         {
             return;
         }
 
+        // Ctrl+wheel zooms track rows when the pointer is over a song list.
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (FindNestedTracksListFromSource(e.OriginalSource as DependencyObject) is not null)
+            {
+                e.Handled = true;
+                var step = e.Delta > 0 ? TracksZoomStep : -TracksZoomStep;
+                TracksZoom = Math.Clamp(TracksZoom + step, TracksZoomMin, TracksZoomMax);
+                App.Settings.Current.TracksListZoom = TracksZoom;
+                App.Settings.Save();
+            }
+
+            return;
+        }
+
+        var nestedList = FindNestedTracksListFromSource(e.OriginalSource as DependencyObject);
+        if (nestedList is not null)
+        {
+            var nested = FindDescendantScrollViewer(nestedList);
+            if (nested is not null && nested.ScrollableHeight > 0.5)
+            {
+                var scrollingUp = e.Delta > 0;
+                var canScrollNested = scrollingUp
+                    ? nested.VerticalOffset > 0.5
+                    : nested.VerticalOffset < nested.ScrollableHeight - 0.5;
+
+                if (canScrollNested)
+                {
+                    nested.ScrollToVerticalOffset(nested.VerticalOffset - e.Delta);
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+
+        // Always drive the outer dashboard scroller so playlist cards / headers scroll too.
         e.Handled = true;
         PlaylistsScrollViewer.ScrollToVerticalOffset(
             PlaylistsScrollViewer.VerticalOffset - e.Delta);
+    }
+
+    private void TracksList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // Scroll chaining is handled by PlaylistsScrollViewer_PreviewMouseWheel (tunnels first).
+        // Keep Ctrl+zoom here as a fallback if the outer handler did not run.
+        if (Keyboard.Modifiers != ModifierKeys.Control || e.Handled)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var step = e.Delta > 0 ? TracksZoomStep : -TracksZoomStep;
+        TracksZoom = Math.Clamp(TracksZoom + step, TracksZoomMin, TracksZoomMax);
+        App.Settings.Current.TracksListZoom = TracksZoom;
+        App.Settings.Save();
+    }
+
+    private static ListBox? FindNestedTracksListFromSource(DependencyObject? source)
+    {
+        for (var node = source; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is ListBox { DataContext: Playlist } list)
+            {
+                return list;
+            }
+        }
+
+        return null;
     }
 
     private static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)

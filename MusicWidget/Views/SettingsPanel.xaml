@@ -1125,12 +1125,16 @@
           <ScrollViewer x:Name="PlaylistsScrollViewer"
                         Grid.Row="1"
                         VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled">
+                        HorizontalScrollBarVisibility="Disabled"
+                        CanContentScroll="False"
+                        PanningMode="VerticalOnly"
+                        PreviewMouseWheel="PlaylistsScrollViewer_PreviewMouseWheel">
             <StackPanel>
               <ListBox x:Name="PlaylistsList"
                        Style="{StaticResource PlaylistAccordionListBox}"
                        ScrollViewer.VerticalScrollBarVisibility="Disabled"
                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                       ScrollViewer.CanContentScroll="False"
                        SelectionChanged="PlaylistsList_SelectionChanged"/>
 
               <Button Margin="0,8,0,0"

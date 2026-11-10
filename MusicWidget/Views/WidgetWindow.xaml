@@ -293,6 +293,7 @@
                  DragCompleted="MoveThumb_DragCompleted"/>
           <views:SettingsPanel x:Name="SettingsPanelControl"
                                HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
                                MinWidth="420"
                                MinHeight="440"/>
           <Thumb x:Name="ResizeGrip"
