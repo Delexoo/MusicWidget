@@ -24,7 +24,6 @@ public partial class App : Application
     public static ArtworkService Artwork { get; private set; } = null!;
     public static UpdateService Updates { get; private set; } = null!;
     public static TrackListStore LikedSongs { get; private set; } = null!;
-    public static TrackListStore SavedSongs { get; private set; } = null!;
     public static PlaylistOrderStore PlaylistOrders { get; private set; } = null!;
 
     public static string AppDataDir { get; } = Path.Combine(
@@ -84,8 +83,6 @@ public partial class App : Application
             Updates = new UpdateService();
             LikedSongs = new TrackListStore(Path.Combine(AppDataDir, "liked-songs.json"));
             LikedSongs.Load();
-            SavedSongs = new TrackListStore(Path.Combine(AppDataDir, "saved-songs.json"));
-            SavedSongs.Load();
 
             AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             {

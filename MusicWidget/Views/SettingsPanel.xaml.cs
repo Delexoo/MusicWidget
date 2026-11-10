@@ -62,12 +62,6 @@ public partial class SettingsPanel : UserControl
         kind: PlaylistKind.Liked,
         iconKey: "Icon.Heart");
 
-    private readonly Playlist _savesPlaylist = new(
-        "Saves",
-        folderPath: string.Empty,
-        kind: PlaylistKind.Saves,
-        iconKey: "Icon.Download");
-
     private List<Playlist> _playlistsCache = new();
     private readonly List<object> _playlistItems = new();
 
@@ -128,7 +122,6 @@ public partial class SettingsPanel : UserControl
         App.Player.EffectsChanged += OnEffectsChanged;
         App.Player.VocalSeparationChanged += OnVocalSeparationChanged;
         App.LikedSongs.Changed += OnLikedSongsChanged;
-        App.SavedSongs.Changed += OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged += OnBackgroundDownloadProgress;
         App.BackgroundDownloads.Completed += OnBackgroundDownloadCompleted;
         _ = RunRefreshAllAsync();
@@ -168,7 +161,6 @@ public partial class SettingsPanel : UserControl
         App.Player.EffectsChanged -= OnEffectsChanged;
         App.Player.VocalSeparationChanged -= OnVocalSeparationChanged;
         App.LikedSongs.Changed -= OnLikedSongsChanged;
-        App.SavedSongs.Changed -= OnSavedSongsChanged;
         App.BackgroundDownloads.ProgressChanged -= OnBackgroundDownloadProgress;
         App.BackgroundDownloads.Completed -= OnBackgroundDownloadCompleted;
         if (_backgroundDownloadHideTick is not null && _backgroundDownloadHideTimer is not null)
@@ -245,7 +237,6 @@ public partial class SettingsPanel : UserControl
     private IEnumerable<Playlist> EnumerateKnownPlaylists()
     {
         yield return _likedPlaylist;
-        yield return _savesPlaylist;
         foreach (var pl in _playlistsCache)
         {
             yield return pl;
@@ -282,15 +273,10 @@ public partial class SettingsPanel : UserControl
             }
         }
 
-        // Virtual queues only when no folder playlist owns the track.
+        // Virtual queue only when no folder playlist owns the track.
         if (App.LikedSongs.Contains(current.FilePath))
         {
             return _likedPlaylist;
-        }
-
-        if (App.SavedSongs.Contains(current.FilePath))
-        {
-            return _savesPlaylist;
         }
 
         return null;
@@ -337,7 +323,6 @@ public partial class SettingsPanel : UserControl
         UpdateFooterLoopIcon();
         UpdateFooterVolumeIcon();
         UpdateFooterLikeIcon();
-        UpdateFooterSaveIcon();
         UpdateFooterProgress();
         UpdateNowPlayingFooter();
         SyncEffectToggles();
@@ -434,7 +419,6 @@ public partial class SettingsPanel : UserControl
         RenderNowPlayingMeta();
         UpdateFooterPlayPauseIcon();
         UpdateFooterLikeIcon();
-        UpdateFooterSaveIcon();
     }
 
     private void HighlightCurrentlyPlayingTrack()
@@ -573,39 +557,12 @@ public partial class SettingsPanel : UserControl
         FooterLikeTooltip.Text = liked ? "Remove from Liked Songs" : "Add to Liked Songs";
     }
 
-    private void UpdateFooterSaveIcon()
-    {
-        var path = App.Player.CurrentTrack?.FilePath;
-        if (string.IsNullOrEmpty(path))
-        {
-            FooterSaveButton.IsEnabled = false;
-            FooterSaveIcon.Fill = (Brush)Application.Current.Resources["Brush.TextMuted"];
-            FooterSaveTooltip.Text = "Save (nothing playing)";
-            return;
-        }
-
-        FooterSaveButton.IsEnabled = true;
-        var saved = App.SavedSongs.Contains(path);
-        FooterSaveIcon.Fill = saved
-            ? (Brush)Application.Current.Resources["Brush.Blue"]
-            : (Brush)Application.Current.Resources["Brush.TextDim"];
-        FooterSaveTooltip.Text = saved ? "Remove from Saves" : "Add to Saves";
-    }
-
     private void FooterLike_Click(object sender, RoutedEventArgs e)
     {
         var path = App.Player.CurrentTrack?.FilePath;
         if (string.IsNullOrEmpty(path)) return;
         App.LikedSongs.Toggle(path);
         // OnLikedSongsChanged refreshes the icon on the UI thread.
-    }
-
-    private void FooterSave_Click(object sender, RoutedEventArgs e)
-    {
-        var path = App.Player.CurrentTrack?.FilePath;
-        if (string.IsNullOrEmpty(path)) return;
-        App.SavedSongs.Toggle(path);
-        // OnSavedSongsChanged refreshes the icon on the UI thread.
     }
 
     private void FooterPrev_Click(object sender, RoutedEventArgs e)
@@ -1130,13 +1087,6 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
-        if (selected.Kind == PlaylistKind.Saves)
-        {
-            RebuildSavedTracks();
-            QueueArtworkLoad(_savesPlaylist);
-            return;
-        }
-
         if (selected.Kind != PlaylistKind.Normal
             || !string.Equals(selected.Name, playlistName, StringComparison.OrdinalIgnoreCase)
             || cached is null)
@@ -1218,7 +1168,6 @@ public partial class SettingsPanel : UserControl
         }
 
         PlaylistIconService.Hydrate(_likedPlaylist);
-        PlaylistIconService.Hydrate(_savesPlaylist);
 
         var prevSelected = PlaylistsList.SelectedItem;
         RebuildPlaylistItemsList();
@@ -1228,7 +1177,6 @@ public partial class SettingsPanel : UserControl
         if (prevSelected is Playlist prevPl)
         {
             if (ReferenceEquals(prevPl, _likedPlaylist)) toSelect = _likedPlaylist;
-            else if (ReferenceEquals(prevPl, _savesPlaylist)) toSelect = _savesPlaylist;
             else
             {
                 toSelect = _playlistsCache.FirstOrDefault(p =>
@@ -1255,7 +1203,6 @@ public partial class SettingsPanel : UserControl
         }
 
         RebuildLikedTracks();
-        RebuildSavedTracks();
         UpdatePlaylistPlayingStates();
 
         if (PlaylistsList.SelectedItem is Playlist selected)
@@ -1268,7 +1215,6 @@ public partial class SettingsPanel : UserControl
     {
         _playlistItems.Clear();
         _playlistItems.Add(_likedPlaylist);
-        _playlistItems.Add(_savesPlaylist);
 
         var pinnedNormals = _playlistsCache.Where(p => p.IsUserPinned).ToList();
         var unpinnedNormals = _playlistsCache.Where(p => !p.IsUserPinned).ToList();
@@ -1318,14 +1264,9 @@ public partial class SettingsPanel : UserControl
     {
         if (reloadVirtual)
         {
-            switch (pl.Kind)
+            if (pl.Kind == PlaylistKind.Liked)
             {
-                case PlaylistKind.Liked:
-                    RebuildLikedTracks();
-                    break;
-                case PlaylistKind.Saves:
-                    RebuildSavedTracks();
-                    break;
+                RebuildLikedTracks();
             }
         }
 
@@ -1347,7 +1288,6 @@ public partial class SettingsPanel : UserControl
         if (playlist is null)
         {
             Sync(_likedPlaylist.Tracks);
-            Sync(_savesPlaylist.Tracks);
             foreach (var pl in _playlistsCache)
             {
                 Sync(pl.Tracks);
@@ -1386,7 +1326,6 @@ public partial class SettingsPanel : UserControl
     }
 
     private void RebuildLikedTracks() => RebuildPinnedTracks(App.LikedSongs, _likedPlaylist);
-    private void RebuildSavedTracks() => RebuildPinnedTracks(App.SavedSongs, _savesPlaylist);
 
     private static void HydrateTracksArtwork(IEnumerable<Track> tracks)
     {
@@ -1475,15 +1414,10 @@ public partial class SettingsPanel : UserControl
             return;
         }
 
-        // Virtual playlists keep their track list dynamic; refresh before checking count.
-        switch (playlist.Kind)
+        // Liked Songs keeps its track list dynamic; refresh before checking count.
+        if (playlist.Kind == PlaylistKind.Liked)
         {
-            case PlaylistKind.Liked:
-                RebuildLikedTracks();
-                break;
-            case PlaylistKind.Saves:
-                RebuildSavedTracks();
-                break;
+            RebuildLikedTracks();
         }
 
         if (playlist.Tracks.Count == 0)
@@ -1904,8 +1838,7 @@ public partial class SettingsPanel : UserControl
             CollapseAllPlaylistsExcept(pl);
             pl.IsExpanded = true;
 
-            var needsReload = pl.Kind is PlaylistKind.Liked or PlaylistKind.Saves
-                              || pl.Tracks.Count == 0;
+            var needsReload = pl.Kind == PlaylistKind.Liked || pl.Tracks.Count == 0;
             if (needsReload)
             {
                 RefreshTracks(pl);
@@ -1985,7 +1918,7 @@ public partial class SettingsPanel : UserControl
 
         CollapseAllPlaylistsExcept(pl);
         pl.IsExpanded = true;
-        if (pl.Kind is PlaylistKind.Liked or PlaylistKind.Saves || pl.Tracks.Count == 0)
+        if (pl.Kind == PlaylistKind.Liked || pl.Tracks.Count == 0)
         {
             RefreshTracks(pl);
         }
@@ -2356,7 +2289,6 @@ public partial class SettingsPanel : UserControl
     private void CollapseAllPlaylistsExcept(Playlist? expanded)
     {
         _likedPlaylist.IsExpanded = expanded is not null && ReferenceEquals(expanded, _likedPlaylist);
-        _savesPlaylist.IsExpanded = expanded is not null && ReferenceEquals(expanded, _savesPlaylist);
         foreach (var pl in _playlistsCache)
         {
             pl.IsExpanded = expanded is not null && ReferenceEquals(pl, expanded);
@@ -2574,8 +2506,7 @@ public partial class SettingsPanel : UserControl
             case PlaylistKind.Liked:
                 App.LikedSongs.Move(fromIndex, toIndex);
                 break;
-            case PlaylistKind.Saves:
-                App.SavedSongs.Move(fromIndex, toIndex);
+            default:
                 break;
         }
 
@@ -3440,7 +3371,7 @@ public partial class SettingsPanel : UserControl
         }
     }
 
-    // ----- Liked / Saved Songs (virtual playlists) -----
+    // ----- Liked Songs (virtual playlist) -----
 
     private void OnLikedSongsChanged(object? sender, EventArgs e)
     {
@@ -3460,27 +3391,6 @@ public partial class SettingsPanel : UserControl
             catch (Exception ex)
             {
                 CrashLog.Write(ex, "SettingsPanel.OnLikedSongsChanged");
-            }
-        });
-    }
-
-    private void OnSavedSongsChanged(object? sender, EventArgs e)
-    {
-        UiDispatcher.BeginInvokeSafe(() =>
-        {
-            if (!_isPanelActive) return;
-            try
-            {
-                RebuildSavedTracks();
-                UpdateFooterSaveIcon();
-                if (PlaylistsList.SelectedItem is Playlist sel && sel.Kind == PlaylistKind.Saves)
-                {
-                    QueueArtworkLoad(_savesPlaylist);
-                }
-            }
-            catch (Exception ex)
-            {
-                CrashLog.Write(ex, "SettingsPanel.OnSavedSongsChanged");
             }
         });
     }

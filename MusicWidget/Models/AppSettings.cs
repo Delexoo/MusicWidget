@@ -48,7 +48,7 @@ public sealed class AppSettings
 
     /// <summary>
     /// Names of Normal playlists the user has pinned via the right-click menu.
-    /// Pinned playlists float above the Liked/Saves divider in the dashboard.
+    /// Pinned playlists float above the Liked Songs divider in the dashboard.
     /// </summary>
     public List<string> PinnedPlaylists { get; set; } = new();
 

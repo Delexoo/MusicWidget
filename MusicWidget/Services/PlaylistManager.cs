@@ -323,7 +323,7 @@ public sealed class PlaylistManager
 
     /// <summary>
     /// Moves a track file from one on-disk playlist into another, updating orders and
-    /// Liked/Saves path pointers. Returns the new absolute path.
+    /// Liked Songs path pointers. Returns the new absolute path.
     /// </summary>
     public string MoveTrackToPlaylist(string sourcePlaylistName, string destPlaylistName, string sourceFilePath)
     {
@@ -365,7 +365,6 @@ public sealed class PlaylistManager
         _orders.AppendToOrder(destPlaylistName, [destPath]);
 
         try { App.LikedSongs.ReplacePath(sourceFilePath, destPath); } catch { /* best-effort */ }
-        try { App.SavedSongs.ReplacePath(sourceFilePath, destPath); } catch { /* best-effort */ }
 
         PlaylistTracksChanged?.Invoke(this, sourcePlaylistName);
         PlaylistTracksChanged?.Invoke(this, destPlaylistName);
@@ -373,7 +372,7 @@ public sealed class PlaylistManager
     }
 
     /// <summary>
-    /// Copies a track into another on-disk playlist (used from Liked/Saves). Returns the new path.
+    /// Copies a track into another on-disk playlist (used from Liked Songs). Returns the new path.
     /// </summary>
     public string CopyTrackToPlaylist(string destPlaylistName, string sourceFilePath)
     {

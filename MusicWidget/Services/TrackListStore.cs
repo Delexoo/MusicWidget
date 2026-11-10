@@ -8,8 +8,7 @@ namespace MusicWidget.Services;
 
 /// <summary>
 /// Persists an ordered collection of track file paths to a JSON file. Used both for
-/// the "Liked Songs" pinned playlist and the "Saves" pinned playlist; each gets its
-/// own instance backed by a separate file.
+/// the "Liked Songs" pinned playlist.
 ///
 /// Insertion order is preserved so views can show the most recently added entries
 /// first (Insert at index 0 on Add).

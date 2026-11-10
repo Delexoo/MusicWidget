@@ -8,7 +8,7 @@ namespace MusicWidget.Services;
 
 /// <summary>
 /// Persists user-defined (or download-derived) track order for on-disk playlists.
-/// Virtual playlists (Liked/Saves) use <see cref="TrackListStore"/> instead.
+/// Virtual playlists (Liked Songs) use <see cref="TrackListStore"/> instead.
 /// </summary>
 public sealed class PlaylistOrderStore
 {

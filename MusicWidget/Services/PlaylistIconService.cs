@@ -9,7 +9,7 @@ namespace MusicWidget.Services;
 /// <summary>
 /// Loads and persists custom playlist cover images.
 /// Normal playlists store <c>playlist-cover.png</c> inside the playlist folder;
-/// Liked/Saves store icons under AppData.
+/// Liked Songs stores its icon under AppData.
 /// </summary>
 public static class PlaylistIconService
 {
@@ -25,7 +25,6 @@ public static class PlaylistIconService
         var key = playlist.Kind switch
         {
             PlaylistKind.Liked => "liked",
-            PlaylistKind.Saves => "saves",
             _ => SanitizeKey(playlist.Name),
         };
 

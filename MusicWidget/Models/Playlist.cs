@@ -11,8 +11,6 @@ public enum PlaylistKind
     Normal,
     /// <summary>Virtual playlist of liked songs, kept in <c>liked-songs.json</c>.</summary>
     Liked,
-    /// <summary>Virtual placeholder playlist for saves / downloads.</summary>
-    Saves,
 }
 
 public sealed class Playlist : INotifyPropertyChanged
@@ -44,7 +42,7 @@ public sealed class Playlist : INotifyPropertyChanged
     public bool HasCustomIcon => _iconSource is not null;
 
     /// <summary>
-    /// User-controlled pin flag for Normal playlists. Liked/Saves are always pinned
+    /// User-controlled pin flag for Normal playlists. Liked Songs is always pinned
     /// regardless of this value (see <see cref="IsPinned"/>).
     /// </summary>
     public bool IsUserPinned
@@ -62,9 +60,8 @@ public sealed class Playlist : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// True for virtual playlists (Liked/Saves) and for any Normal playlist the
-    /// user has pinned. Pinned rows render with a leading badge and bubble up
-    /// above the divider in the playlist list.
+    /// True for Liked Songs and for any Normal playlist the user has pinned.
+    /// Pinned rows render with a leading badge and bubble up above the divider.
     /// </summary>
     public bool IsPinned => Kind != PlaylistKind.Normal || _isUserPinned;
 

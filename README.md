@@ -73,7 +73,7 @@ Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-d
 
 ## What's new
 
-**Latest: v2.2.39** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
+**Latest: v2.2.40** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
@@ -172,8 +172,8 @@ On first download, Beats silently fetches `yt-dlp`, `ffmpeg`, and (for Spotify) 
 - **Portable library** - copy, back up, or sync folders like any other files on disk
 - **Create | rename | delete** - full playlist management from the dashboard
 - **Add from disk** - import existing audio files into any playlist
-- **Liked Songs & Saves** - built-in collections separate from normal playlists
-- **Pin playlists** - right-click to pin favorites above the Liked/Saves divider
+- **Liked Songs** - built-in collection separate from normal playlists
+- **Pin playlists** - right-click to pin favorites above the Liked Songs divider
 - **Custom order** - drag to reorder playlists and tracks; order persists across sessions
 - **Live updates** - file system watchers refresh track lists when files change on disk
 - **Album artwork** - embedded art, sidecar images, disk cache, and online lookup in playlist rows
@@ -328,7 +328,6 @@ After the initial bootstrap, all downloads run locally with no additional setup.
 %APPDATA%\MusicWidget\
 ├── settings.json           # Preferences, window layout, volume, etc.
 ├── liked-songs.json        # Liked Songs collection
-├── saved-songs.json        # Saves collection
 ├── playlist-orders.json    # Custom playlist & track ordering
 ├── artwork\                # Cached album art
 └── tools\
