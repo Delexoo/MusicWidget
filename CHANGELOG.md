@@ -2,6 +2,12 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2026-11-18
+
+### Changed
+- Center the widget on launch
+- EFX and Add music open as compact popovers from their buttons (no full-screen modal)
+
 ## [2.3.2] - 2026-11-18
 
 ### Added

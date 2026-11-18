@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { trackCoverUrl } from "../services/music/musicApi";
 import type { PlaylistInfo, TrackInfo } from "../services/music/types";
 import { useMusicStore } from "../stores/musicStore";
-import { AddMusicPanel } from "./AddMusicPanel";
+import { AddMusicPanel, type AnchorRect } from "./AddMusicPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import { EfxPanel } from "./EfxPanel";
 import { TextPromptModal } from "./TextPromptModal";
@@ -35,6 +35,7 @@ export function Dashboard() {
   const [efxOpen, setEfxOpen] = useState(false);
   const [addMusicOpen, setAddMusicOpen] = useState(false);
   const [addMusicPlaylist, setAddMusicPlaylist] = useState<string | null>(null);
+  const [addMusicAnchor, setAddMusicAnchor] = useState<AnchorRect | null>(null);
   const [renameTarget, setRenameTarget] = useState<PlaylistInfo | null>(null);
   const [deletePlaylistTarget, setDeletePlaylistTarget] = useState<PlaylistInfo | null>(null);
   const [deleteTrackTarget, setDeleteTrackTarget] = useState<TrackInfo | null>(null);
@@ -77,9 +78,19 @@ export function Dashboard() {
     toggleLikePath,
   } = useMusicStore();
 
-  const openAddMusic = (playlistName: string) => {
+  const openAddMusic = (playlistName: string, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
     setAddMusicPlaylist(playlistName);
+    setAddMusicAnchor({
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.bottom,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height,
+    });
     setAddMusicOpen(true);
+    setEfxOpen(false);
   };
 
   useEffect(() => {
@@ -185,7 +196,7 @@ export function Dashboard() {
                       title="Add music"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openAddMusic(p.name);
+                        openAddMusic(p.name, e.currentTarget);
                       }}
                     >
                       <IconPlus />
@@ -213,7 +224,7 @@ export function Dashboard() {
                         type="button"
                         className="dashed-btn"
                         style={{ marginTop: 4 }}
-                        onClick={() => openAddMusic(p.name)}
+                        onClick={(e) => openAddMusic(p.name, e.currentTarget)}
                       >
                         + Add music
                       </button>
@@ -331,7 +342,7 @@ export function Dashboard() {
                         <button
                           type="button"
                           className="dashed-btn"
-                          onClick={() => openAddMusic(p.name)}
+                          onClick={(e) => openAddMusic(p.name, e.currentTarget)}
                         >
                           + Add music
                         </button>
@@ -414,23 +425,32 @@ export function Dashboard() {
         }}
       />
 
-      <EfxPanel open={efxOpen} onClose={() => setEfxOpen(false)} />
       <AddMusicPanel
         open={addMusicOpen}
         playlistName={addMusicPlaylist}
-        onClose={() => setAddMusicOpen(false)}
+        anchor={addMusicAnchor}
+        onClose={() => {
+          setAddMusicOpen(false);
+          setAddMusicAnchor(null);
+        }}
       />
 
       <div className="border-t border-[var(--border)] px-4 pb-4 pt-3">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            className={`efx-btn ${efxActive || efxOpen ? "is-active" : ""}`}
-            title="Open effects"
-            onClick={() => setEfxOpen(true)}
-          >
-            EFX
-          </button>
+          <div className="efx-anchor relative shrink-0">
+            <button
+              type="button"
+              className={`efx-btn ${efxActive || efxOpen ? "is-active" : ""}`}
+              title="Open effects"
+              onClick={() => {
+                setEfxOpen((v) => !v);
+                setAddMusicOpen(false);
+              }}
+            >
+              EFX
+            </button>
+            <EfxPanel open={efxOpen} onClose={() => setEfxOpen(false)} />
+          </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex justify-between font-mono text-[10.5px] text-[var(--muted)]">
               <span>{formatTime(currentTime)}</span>

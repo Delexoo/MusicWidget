@@ -23,6 +23,12 @@ fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn center_main_window(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.center();
+    }
+}
+
 #[tauri::command]
 fn hide_main_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("main") {
@@ -48,6 +54,8 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            center_main_window(app.handle());
+
             let show_i = MenuItem::with_id(app, "show", "Show MusicWidget", true, None::<&str>)?;
             let dash_i = MenuItem::with_id(app, "dashboard", "Open Dashboard", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;

@@ -11,12 +11,13 @@ import { useMusicStore } from "./stores/musicStore";
 const PILL_SIZE = { width: 360, height: 88 };
 const DASH_SIZE = { width: 760, height: 820 };
 
-async function sizeWindow(open: boolean) {
+async function sizeWindow(open: boolean, center = false) {
   try {
     const win = getCurrentWindow();
     const size = open ? DASH_SIZE : PILL_SIZE;
     await win.setSize(new LogicalSize(size.width, size.height));
     await win.setMinSize(new LogicalSize(open ? 420 : 280, open ? 440 : 72));
+    if (center) await win.center();
   } catch {
     /* best-effort in browser preview */
   }
@@ -73,7 +74,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void sizeWindow(false);
+    void sizeWindow(false, true);
   }, []);
 
   useEffect(() => {
