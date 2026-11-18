@@ -48,8 +48,14 @@ type MusicState = {
   setShuffle: (on: boolean) => void;
   toggleVocals: () => Promise<void>;
   createPlaylist: (name: string) => Promise<void>;
-  download: () => Promise<void>;
+  renamePlaylist: (name: string, newName: string) => Promise<void>;
+  deletePlaylist: (name: string) => Promise<void>;
+  deleteTrack: (filePath: string) => Promise<void>;
+  moveTrack: (filePath: string, playlist: string) => Promise<void>;
+  download: (playlist?: string) => Promise<void>;
+  importSources: (playlist: string, sources: string[]) => Promise<void>;
   toggleLike: () => Promise<void>;
+  toggleLikePath: (filePath: string) => Promise<void>;
 };
 
 function resolvePlayPath(track: TrackInfo, vocalsOff: boolean) {
@@ -285,14 +291,162 @@ export const useMusicStore = create<MusicState>((set, get) => {
       await get().selectPlaylist(name);
     },
 
-    download: async () => {
+    renamePlaylist: async (name, newName) => {
+      try {
+        const renamed = await api.renamePlaylist(name, newName);
+        const playlists = await api.listPlaylists();
+        const { activePlaylist, expandedPlaylist, queue } = get();
+        set({
+          playlists,
+          activePlaylist: activePlaylist === name ? renamed.name : activePlaylist,
+          expandedPlaylist:
+            expandedPlaylist === name ? renamed.name : expandedPlaylist,
+          queue: queue.map((t) =>
+            t.playlist === name ? { ...t, playlist: renamed.name } : t,
+          ),
+          status: `Renamed to “${renamed.name}”.`,
+        });
+        if (get().expandedPlaylist === renamed.name) {
+          await get().selectPlaylist(renamed.name);
+        }
+      } catch (err) {
+        set({
+          status: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+
+    deletePlaylist: async (name) => {
+      try {
+        await api.deletePlaylist(name);
+        const playlists = await api.listPlaylists();
+        const { activePlaylist, expandedPlaylist, queue, index } = get();
+        const nextActive =
+          activePlaylist === name
+            ? (playlists.find((p) => p.kind === "normal")?.name ??
+              playlists[0]?.name ??
+              null)
+            : activePlaylist;
+        const nextExpanded = expandedPlaylist === name ? nextActive : expandedPlaylist;
+        const nextQueue =
+          activePlaylist === name
+            ? []
+            : queue.filter((t) => t.playlist !== name);
+        set({
+          playlists,
+          activePlaylist: nextActive,
+          expandedPlaylist: nextExpanded,
+          tracks: [],
+          queue: nextQueue,
+          index: nextQueue.length ? Math.min(index, nextQueue.length - 1) : -1,
+          status: `Deleted “${name}”.`,
+        });
+        if (nextExpanded) await get().selectPlaylist(nextExpanded);
+      } catch (err) {
+        set({
+          status: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+
+    deleteTrack: async (filePath) => {
+      try {
+        await api.deleteTrack(filePath);
+        const { activePlaylist, queue, index } = get();
+        const tracks = activePlaylist
+          ? await api.listTracks(activePlaylist)
+          : [];
+        const playlists = await api.listPlaylists();
+        const nextQueue = queue.filter(
+          (t) => t.filePath.toLowerCase() !== filePath.toLowerCase(),
+        );
+        let nextIndex = index;
+        if (queue[index]?.filePath.toLowerCase() === filePath.toLowerCase()) {
+          nextIndex = nextQueue.length ? Math.min(index, nextQueue.length - 1) : -1;
+          if (nextIndex >= 0) await get().playTrackAt(nextIndex, nextQueue);
+          else {
+            audioEngine.pause();
+            set({ playing: false, currentTime: 0, duration: 0 });
+          }
+        }
+        set({
+          tracks,
+          playlists,
+          queue: nextQueue,
+          index: nextIndex,
+          status: "Track deleted.",
+        });
+      } catch (err) {
+        set({
+          status: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+
+    moveTrack: async (filePath, playlist) => {
+      try {
+        await api.moveTrack(filePath, playlist);
+        const { activePlaylist, queue, index } = get();
+        const tracks = activePlaylist
+          ? await api.listTracks(activePlaylist)
+          : [];
+        const playlists = await api.listPlaylists();
+        const nextQueue = queue.filter(
+          (t) => t.filePath.toLowerCase() !== filePath.toLowerCase(),
+        );
+        let nextIndex = index;
+        if (queue[index]?.filePath.toLowerCase() === filePath.toLowerCase()) {
+          nextIndex = nextQueue.length ? Math.min(index, nextQueue.length - 1) : -1;
+        }
+        set({
+          tracks,
+          playlists,
+          queue: nextQueue,
+          index: nextIndex,
+          status: `Moved to “${playlist}”.`,
+        });
+      } catch (err) {
+        set({
+          status: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+
+    download: async (playlist) => {
       const { downloadUrl, activePlaylist } = get();
-      if (!downloadUrl.trim() || !activePlaylist) return;
-      set({ status: "Downloading…" });
+      const target = playlist ?? activePlaylist;
+      if (!downloadUrl.trim() || !target) return;
+      set({ status: "Downloading…", activePlaylist: target, expandedPlaylist: target });
       try {
         await api.ensureTools();
-        const tracks = await api.downloadTrack(downloadUrl.trim(), activePlaylist);
-        set({ tracks, downloadUrl: "", status: "Download complete." });
+        const tracks = await api.downloadTrack(downloadUrl.trim(), target);
+        const playlists = await api.listPlaylists();
+        set({
+          tracks,
+          playlists,
+          downloadUrl: "",
+          status: "Download complete.",
+        });
+      } catch (err) {
+        set({
+          status: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+
+    importSources: async (playlist, sources) => {
+      if (!sources.length) return;
+      set({ status: "Importing…" });
+      try {
+        const tracks = await api.importMusicFiles(playlist, sources);
+        const playlists = await api.listPlaylists();
+        set({
+          tracks,
+          playlists,
+          activePlaylist: playlist,
+          expandedPlaylist: playlist,
+          status: `Added ${tracks.length} track${tracks.length === 1 ? "" : "s"}.`,
+        });
       } catch (err) {
         set({
           status: err instanceof Error ? err.message : String(err),
@@ -301,17 +455,36 @@ export const useMusicStore = create<MusicState>((set, get) => {
     },
 
     toggleLike: async () => {
-      const { queue, index, liked } = get();
+      const { queue, index } = get();
       const track = queue[index];
       if (!track) return;
-      const has = liked.some(
-        (p) => p.toLowerCase() === track.filePath.toLowerCase(),
-      );
+      await get().toggleLikePath(track.filePath);
+    },
+
+    toggleLikePath: async (filePath) => {
+      const { liked, activePlaylist, expandedPlaylist } = get();
+      const has = liked.some((p) => p.toLowerCase() === filePath.toLowerCase());
       const next = has
-        ? liked.filter((p) => p.toLowerCase() !== track.filePath.toLowerCase())
-        : [...liked, track.filePath];
+        ? liked.filter((p) => p.toLowerCase() !== filePath.toLowerCase())
+        : [...liked, filePath];
       await api.setLiked(next);
       set({ liked: next });
+      const viewingLiked = [activePlaylist, expandedPlaylist].some(
+        (name) =>
+          !!name &&
+          (name === "__liked__" || name.toLowerCase() === "liked songs"),
+      );
+      if (viewingLiked) {
+        const name = expandedPlaylist ?? activePlaylist;
+        if (name) {
+          const tracks = await api.listTracks(name);
+          const playlists = await api.listPlaylists();
+          set({ tracks, playlists });
+        }
+      } else {
+        const playlists = await api.listPlaylists();
+        set({ playlists });
+      }
     },
   };
 });

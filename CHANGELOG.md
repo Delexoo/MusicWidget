@@ -2,6 +2,17 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-11-18
+
+### Added
+- In-app EFX panel (4-tick bass, reverb slider, vocals toggle, speed)
+- Add music flow: select files/folder or download URL (no always-visible download bar)
+- Playlist rename / delete / add controls; track like, move-to-playlist, and delete menus
+- In-app prompt and confirm modals; disabled WebView context menu
+
+### Changed
+- Empty playlists show a dotted **Add music** button instead of static “No tracks yet”
+
 ## [2.3.1] - 2026-11-18
 
 ### Changed

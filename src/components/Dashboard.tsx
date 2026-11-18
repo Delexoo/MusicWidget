@@ -1,16 +1,26 @@
+import { useEffect, useRef, useState } from "react";
 import { trackCoverUrl } from "../services/music/musicApi";
+import type { PlaylistInfo, TrackInfo } from "../services/music/types";
 import { useMusicStore } from "../stores/musicStore";
+import { AddMusicPanel } from "./AddMusicPanel";
+import { ConfirmModal } from "./ConfirmModal";
+import { EfxPanel } from "./EfxPanel";
+import { TextPromptModal } from "./TextPromptModal";
 import {
   IconChevron,
   IconClose,
+  IconEdit,
   IconLike,
   IconLoop,
+  IconMore,
   IconMusic,
   IconNext,
   IconPause,
   IconPlay,
+  IconPlus,
   IconPrev,
   IconShuffle,
+  IconTrash,
 } from "./icons";
 
 function formatTime(sec: number) {
@@ -21,6 +31,16 @@ function formatTime(sec: number) {
 }
 
 export function Dashboard() {
+  const [playlistPromptOpen, setPlaylistPromptOpen] = useState(false);
+  const [efxOpen, setEfxOpen] = useState(false);
+  const [addMusicOpen, setAddMusicOpen] = useState(false);
+  const [addMusicPlaylist, setAddMusicPlaylist] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<PlaylistInfo | null>(null);
+  const [deletePlaylistTarget, setDeletePlaylistTarget] = useState<PlaylistInfo | null>(null);
+  const [deleteTrackTarget, setDeleteTrackTarget] = useState<TrackInfo | null>(null);
+  const [trackMenuId, setTrackMenuId] = useState<string | null>(null);
+  const trackMenuRef = useRef<HTMLDivElement | null>(null);
+
   const {
     playlists,
     expandedPlaylist,
@@ -38,7 +58,6 @@ export function Dashboard() {
     vocalsOffByPath,
     liked,
     status,
-    downloadUrl,
     setDashboardOpen,
     togglePlaylistExpanded,
     playTrackAt,
@@ -47,24 +66,42 @@ export function Dashboard() {
     prev,
     seek,
     setVolume,
-    setRate,
-    setBass,
-    setReverb,
     setLoop,
     setShuffle,
-    toggleVocals,
     createPlaylist,
-    download,
+    renamePlaylist,
+    deletePlaylist,
+    deleteTrack,
+    moveTrack,
     toggleLike,
-    setDownloadUrl,
+    toggleLikePath,
   } = useMusicStore();
+
+  const openAddMusic = (playlistName: string) => {
+    setAddMusicPlaylist(playlistName);
+    setAddMusicOpen(true);
+  };
+
+  useEffect(() => {
+    if (!trackMenuId) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!trackMenuRef.current?.contains(e.target as Node)) {
+        setTrackMenuId(null);
+      }
+    };
+    window.addEventListener("mousedown", onPointer);
+    return () => window.removeEventListener("mousedown", onPointer);
+  }, [trackMenuId]);
 
   const track = index >= 0 ? queue[index] : null;
   const cover = trackCoverUrl(track?.coverPath);
   const vocalsOff = track ? Boolean(vocalsOffByPath[track.filePath]) : false;
+  const efxActive =
+    effects.bassBoost > 0 || effects.reverb > 0 || vocalsOff || Math.abs(rate - 1) > 0.001;
   const likedNow = track
     ? liked.some((p) => p.toLowerCase() === track.filePath.toLowerCase())
     : false;
+  const moveTargets = playlists.filter((p) => p.kind === "normal");
 
   return (
     <div
@@ -97,63 +134,209 @@ export function Dashboard() {
         </div>
         {playlists.map((p) => {
           const open = expandedPlaylist === p.name;
+          const canManage = p.kind === "normal";
           return (
             <div key={p.id} className={`playlist-card ${open ? "is-open" : ""}`}>
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 text-left"
-                onClick={() => void togglePlaylistExpanded(p.name)}
-              >
-                <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center bg-[var(--surface-high)] text-[var(--text-dim)]"
-                  style={{ borderRadius: "var(--radius-card)" }}
+              <div className="flex w-full items-center gap-2">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  onClick={() => void togglePlaylistExpanded(p.name)}
                 >
-                  <IconMusic size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{p.name}</div>
-                  <div className="text-[11px] text-[var(--muted)]">{p.trackCount} tracks</div>
-                </div>
-                <span className={`text-[var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}>
-                  <IconChevron />
-                </span>
-              </button>
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center bg-[var(--surface-high)] text-[var(--text-dim)]"
+                    style={{ borderRadius: "var(--radius-card)" }}
+                  >
+                    <IconMusic size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{p.name}</div>
+                    <div className="text-[11px] text-[var(--muted)]">{p.trackCount} tracks</div>
+                  </div>
+                </button>
+
+                {canManage ? (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      className="row-icon-btn"
+                      title="Rename playlist"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenameTarget(p);
+                      }}
+                    >
+                      <IconEdit />
+                    </button>
+                    <button
+                      type="button"
+                      className="row-icon-btn danger"
+                      title="Delete playlist"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletePlaylistTarget(p);
+                      }}
+                    >
+                      <IconTrash />
+                    </button>
+                    <button
+                      type="button"
+                      className="row-icon-btn"
+                      title="Add music"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAddMusic(p.name);
+                      }}
+                    >
+                      <IconPlus />
+                    </button>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="row-icon-btn"
+                  title={open ? "Collapse" : "Expand"}
+                  onClick={() => void togglePlaylistExpanded(p.name)}
+                >
+                  <span className={`transition-transform ${open ? "rotate-180" : ""}`}>
+                    <IconChevron />
+                  </span>
+                </button>
+              </div>
 
               {open ? (
                 <div className="mt-2 max-h-[360px] overflow-auto">
                   {tracks.length === 0 ? (
-                    <div className="px-2 py-3 text-xs text-[var(--muted)]">No tracks yet.</div>
+                    canManage ? (
+                      <button
+                        type="button"
+                        className="dashed-btn"
+                        style={{ marginTop: 4 }}
+                        onClick={() => openAddMusic(p.name)}
+                      >
+                        + Add music
+                      </button>
+                    ) : (
+                      <div className="px-2 py-3 text-xs text-[var(--muted)]">No liked songs yet.</div>
+                    )
                   ) : (
-                    tracks.map((t, i) => {
-                      const isCurrent =
-                        track?.filePath.toLowerCase() === t.filePath.toLowerCase();
-                      const rowCover = trackCoverUrl(t.coverPath);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className={`track-row ${isCurrent ? "is-current" : ""}`}
-                          onClick={() => void playTrackAt(i, tracks)}
-                        >
+                    <>
+                      {tracks.map((t, i) => {
+                        const isCurrent =
+                          track?.filePath.toLowerCase() === t.filePath.toLowerCase();
+                        const rowCover = trackCoverUrl(t.coverPath);
+                        const menuOpen = trackMenuId === t.id;
+                        const isLiked = liked.some(
+                          (path) => path.toLowerCase() === t.filePath.toLowerCase(),
+                        );
+                        const destinations = moveTargets.filter(
+                          (dest) => dest.name.toLowerCase() !== t.playlist.toLowerCase(),
+                        );
+                        return (
                           <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden bg-white"
-                            style={{ borderRadius: 8 }}
+                            key={t.id}
+                            className={`track-row relative ${isCurrent ? "is-current" : ""} ${menuOpen ? "is-menu-open" : ""}`}
                           >
-                            {rowCover ? (
-                              <img src={rowCover} alt="" className="h-full w-full object-cover" draggable={false} />
-                            ) : (
-                              <span className="text-[var(--pill-icon)]">
-                                <IconMusic size={16} />
-                              </span>
-                            )}
+                            <button
+                              type="button"
+                              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                              onClick={() => void playTrackAt(i, tracks)}
+                            >
+                              <div
+                                className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden bg-white"
+                                style={{ borderRadius: 8 }}
+                              >
+                                {rowCover ? (
+                                  <img
+                                    src={rowCover}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <span className="text-[var(--pill-icon)]">
+                                    <IconMusic size={16} />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[13px] font-semibold">{t.title}</div>
+                                <div className="truncate text-xs text-[var(--text-dim)]">
+                                  {t.artist}
+                                </div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="row-icon-btn"
+                              title="Track options"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTrackMenuId(menuOpen ? null : t.id);
+                              }}
+                            >
+                              <IconMore />
+                            </button>
+
+                            {menuOpen ? (
+                              <div ref={trackMenuRef} className="track-menu">
+                                <button
+                                  type="button"
+                                  className="track-menu-item"
+                                  onClick={() => {
+                                    void toggleLikePath(t.filePath);
+                                    setTrackMenuId(null);
+                                  }}
+                                >
+                                  {isLiked ? "Remove from Liked" : "Add to Liked Songs"}
+                                </button>
+                                {destinations.length > 0 ? (
+                                  <>
+                                    <div className="track-menu-sep" />
+                                    <div className="track-menu-label">Move to playlist</div>
+                                    {destinations.map((dest) => (
+                                      <button
+                                        key={dest.id}
+                                        type="button"
+                                        className="track-menu-item"
+                                        onClick={() => {
+                                          void moveTrack(t.filePath, dest.name);
+                                          setTrackMenuId(null);
+                                        }}
+                                      >
+                                        {dest.name}
+                                      </button>
+                                    ))}
+                                  </>
+                                ) : null}
+                                <div className="track-menu-sep" />
+                                <button
+                                  type="button"
+                                  className="track-menu-item danger"
+                                  onClick={() => {
+                                    setDeleteTrackTarget(t);
+                                    setTrackMenuId(null);
+                                  }}
+                                >
+                                  Delete from playlist
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-semibold">{t.title}</div>
-                            <div className="truncate text-xs text-[var(--text-dim)]">{t.artist}</div>
-                          </div>
+                        );
+                      })}
+                      {canManage ? (
+                        <button
+                          type="button"
+                          className="dashed-btn"
+                          onClick={() => openAddMusic(p.name)}
+                        >
+                          + Add music
                         </button>
-                      );
-                    })
+                      ) : null}
+                    </>
                   )}
                 </div>
               ) : null}
@@ -164,51 +347,108 @@ export function Dashboard() {
         <button
           type="button"
           className="dashed-btn"
-          onClick={() => {
-            const name = window.prompt("Playlist name");
-            if (name?.trim()) void createPlaylist(name.trim());
-          }}
+          onClick={() => setPlaylistPromptOpen(true)}
         >
           + New playlist
         </button>
       </div>
 
+      <TextPromptModal
+        open={playlistPromptOpen}
+        title="New playlist"
+        label="Playlist name"
+        placeholder="e.g. Focus, Gym, Late night"
+        confirmLabel="Create"
+        onCancel={() => setPlaylistPromptOpen(false)}
+        onConfirm={(name) => {
+          setPlaylistPromptOpen(false);
+          void createPlaylist(name);
+        }}
+      />
+
+      <TextPromptModal
+        open={Boolean(renameTarget)}
+        title="Rename playlist"
+        label="Playlist name"
+        initialValue={renameTarget?.name ?? ""}
+        confirmLabel="Rename"
+        onCancel={() => setRenameTarget(null)}
+        onConfirm={(name) => {
+          const current = renameTarget;
+          setRenameTarget(null);
+          if (current) void renamePlaylist(current.name, name);
+        }}
+      />
+
+      <ConfirmModal
+        open={Boolean(deletePlaylistTarget)}
+        title="Delete playlist"
+        message={
+          deletePlaylistTarget
+            ? `Delete “${deletePlaylistTarget.name}” and its copied tracks from the library?`
+            : ""
+        }
+        confirmLabel="Delete"
+        onCancel={() => setDeletePlaylistTarget(null)}
+        onConfirm={() => {
+          const target = deletePlaylistTarget;
+          setDeletePlaylistTarget(null);
+          if (target) void deletePlaylist(target.name);
+        }}
+      />
+
+      <ConfirmModal
+        open={Boolean(deleteTrackTarget)}
+        title="Delete track"
+        message={
+          deleteTrackTarget
+            ? `Remove “${deleteTrackTarget.title}” from this playlist?`
+            : ""
+        }
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTrackTarget(null)}
+        onConfirm={() => {
+          const target = deleteTrackTarget;
+          setDeleteTrackTarget(null);
+          if (target) void deleteTrack(target.filePath);
+        }}
+      />
+
+      <EfxPanel open={efxOpen} onClose={() => setEfxOpen(false)} />
+      <AddMusicPanel
+        open={addMusicOpen}
+        playlistName={addMusicPlaylist}
+        onClose={() => setAddMusicOpen(false)}
+      />
+
       <div className="border-t border-[var(--border)] px-4 pb-4 pt-3">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Effects
-          </span>
+        <div className="mb-3 flex items-center justify-between gap-3">
           <button
             type="button"
-            className={`effect-chip ${effects.bassBoost > 0 ? "is-on" : ""}`}
-            onClick={() => setBass((effects.bassBoost + 1) % 4)}
+            className={`efx-btn ${efxActive || efxOpen ? "is-active" : ""}`}
+            title="Open effects"
+            onClick={() => setEfxOpen(true)}
           >
-            {effects.bassBoost === 0 ? "Bass off" : `Bass ${effects.bassBoost}`}
+            EFX
           </button>
-          <div className="flex min-w-[160px] flex-1 items-center gap-2">
-            <span className="whitespace-nowrap text-xs text-[var(--text-dim)]">
-              Reverb {Math.round(effects.reverb * 100)}%
-            </span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex justify-between font-mono text-[10.5px] text-[var(--muted)]">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
             <input
               className="slider"
               type="range"
               min={0}
-              max={1}
-              step={0.01}
-              value={effects.reverb}
-              onChange={(e) => setReverb(Number(e.target.value))}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              onChange={(e) => seek(Number(e.target.value))}
             />
           </div>
-          <button
-            type="button"
-            className={`effect-chip ${vocalsOff ? "is-on" : ""}`}
-            onClick={() => void toggleVocals()}
-          >
-            {vocalsOff ? "Vocals off" : "Vocals on"}
-          </button>
         </div>
 
-        <div className="grid grid-cols-[minmax(140px,1fr)_auto_minmax(250px,1.2fr)] items-center gap-3">
+        <div className="grid grid-cols-[minmax(140px,1fr)_auto_minmax(160px,0.9fr)] items-center gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden bg-white"
@@ -273,72 +513,20 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="min-w-0 space-y-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="mb-1 text-[10.5px] text-[var(--muted)]">
-                  Volume {Math.round(volume * 100)}%
-                </div>
-                <input
-                  className="slider"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <div className="mb-1 text-[10.5px] text-[var(--muted)]">
-                  Speed {rate.toFixed(2)}x
-                </div>
-                <input
-                  className="slider"
-                  type="range"
-                  min={0.5}
-                  max={2}
-                  step={0.01}
-                  value={rate}
-                  onChange={(e) => setRate(Number(e.target.value))}
-                />
-              </div>
+          <div className="min-w-0">
+            <div className="mb-1 text-[10.5px] text-[var(--muted)]">
+              Volume {Math.round(volume * 100)}%
             </div>
-            <div>
-              <div className="mb-1 flex justify-between font-mono text-[10.5px] text-[var(--muted)]">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-              <input
-                className="slider"
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={0.1}
-                value={Math.min(currentTime, duration || 0)}
-                onChange={(e) => seek(Number(e.target.value))}
-              />
-            </div>
+            <input
+              className="slider"
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+            />
           </div>
-        </div>
-
-        <div className="mt-3 flex gap-2">
-          <input
-            className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs text-[var(--text)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--blue)]"
-            placeholder="Paste YouTube / Spotify / TikTok URL"
-            value={downloadUrl}
-            onChange={(e) => setDownloadUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void download();
-            }}
-          />
-          <button
-            type="button"
-            className="rounded-lg bg-[var(--blue)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--blue-hover)]"
-            onClick={() => void download()}
-          >
-            Download
-          </button>
         </div>
         {status ? (
           <div className="mt-2 text-[11px] text-[var(--text-dim)]">{status}</div>

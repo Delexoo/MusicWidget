@@ -76,6 +76,12 @@ export default function App() {
     void sizeWindow(false);
   }, []);
 
+  useEffect(() => {
+    const blockBrowserChrome = (e: Event) => e.preventDefault();
+    document.addEventListener("contextmenu", blockBrowserChrome);
+    return () => document.removeEventListener("contextmenu", blockBrowserChrome);
+  }, []);
+
   if (!ready) {
     return (
       <div className="flex h-full items-start justify-center p-3 text-sm text-[var(--muted)]">
