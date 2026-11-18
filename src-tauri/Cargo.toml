@@ -1,6 +1,6 @@
 [package]
 name = "musicwidget"
-version = "2.3.0"
+version = "2.3.1"
 description = "MusicWidget — floating desktop music player for Windows"
 authors = ["Delexo"]
 edition = "2021"

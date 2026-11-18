@@ -2,6 +2,12 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-11-18
+
+### Changed
+- Restored classic MusicWidget UI on Tauri: charcoal radius-14 pill, white-circle transport, clip-reveal loop/gear, accordion dashboard, footer EFX + now-playing
+- Window sizes to pill-only vs expanded dashboard; continuous reverb slider kept in the effects row
+
 ## [2.3.0] - 2026-11-18
 
 ### Changed

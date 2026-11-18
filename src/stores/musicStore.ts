@@ -13,6 +13,7 @@ type MusicState = {
   hoverExpanded: boolean;
   playlists: PlaylistInfo[];
   activePlaylist: string | null;
+  expandedPlaylist: string | null;
   tracks: TrackInfo[];
   queue: TrackInfo[];
   index: number;
@@ -31,7 +32,9 @@ type MusicState = {
   hydrate: () => Promise<void>;
   setDashboardOpen: (open: boolean) => void;
   setHoverExpanded: (open: boolean) => void;
+  setDownloadUrl: (url: string) => void;
   selectPlaylist: (name: string) => Promise<void>;
+  togglePlaylistExpanded: (name: string) => Promise<void>;
   playTrackAt: (index: number, queue?: TrackInfo[]) => Promise<void>;
   togglePlay: () => Promise<void>;
   next: () => Promise<void>;
@@ -42,6 +45,7 @@ type MusicState = {
   setBass: (level: number) => void;
   setReverb: (amount: number) => void;
   setLoop: (on: boolean) => void;
+  setShuffle: (on: boolean) => void;
   toggleVocals: () => Promise<void>;
   createPlaylist: (name: string) => Promise<void>;
   download: () => Promise<void>;
@@ -72,6 +76,7 @@ export const useMusicStore = create<MusicState>((set, get) => {
     hoverExpanded: false,
     playlists: [],
     activePlaylist: null,
+    expandedPlaylist: null,
     tracks: [],
     queue: [],
     index: -1,
@@ -104,6 +109,7 @@ export const useMusicStore = create<MusicState>((set, get) => {
           ready: true,
           playlists,
           activePlaylist: active,
+          expandedPlaylist: active,
           tracks,
           liked: snap.liked,
           status: null,
@@ -116,12 +122,24 @@ export const useMusicStore = create<MusicState>((set, get) => {
       }
     },
 
-    setDashboardOpen: (open) => set({ dashboardOpen: open, hoverExpanded: open || get().hoverExpanded }),
+    setDashboardOpen: (open) =>
+      set({ dashboardOpen: open, hoverExpanded: open || get().hoverExpanded }),
     setHoverExpanded: (open) => set({ hoverExpanded: open }),
+    setDownloadUrl: (url) => set({ downloadUrl: url }),
 
     selectPlaylist: async (name) => {
       const tracks = await api.listTracks(name);
-      set({ activePlaylist: name, tracks });
+      set({ activePlaylist: name, expandedPlaylist: name, tracks });
+    },
+
+    togglePlaylistExpanded: async (name) => {
+      const { expandedPlaylist } = get();
+      if (expandedPlaylist === name) {
+        set({ expandedPlaylist: null });
+        return;
+      }
+      const tracks = await api.listTracks(name);
+      set({ activePlaylist: name, expandedPlaylist: name, tracks });
     },
 
     playTrackAt: async (index, queue) => {
@@ -226,6 +244,8 @@ export const useMusicStore = create<MusicState>((set, get) => {
       audioEngine.setLoop(on);
       set({ loop: on });
     },
+
+    setShuffle: (on) => set({ shuffle: on }),
 
     toggleVocals: async () => {
       const { queue, index, vocalsOffByPath, currentTime, playing } = get();
