@@ -2,6 +2,18 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-18
+
+### Changed
+- **Framework rewrite:** MusicWidget now ships on **Tauri 2 + React + Web Audio** (same music engine patterns as Mochi)
+- Live lowshelf bass + delay/feedback reverb with a **continuous reverb slider** (0–100%)
+- Spring-smooth pill hover and dashboard open/close (Motion)
+- System tray, Alt+\ hide, folder playlists, yt-dlp downloads, and UVR-MDX HQ → WAV vocals on the new stack
+- Installer produced by Tauri NSIS, published as `MusicWidget-Setup-x64.exe`
+
+### Removed
+- WPF / LibVLC shipping path (legacy `MusicWidget/` C# project retained in-repo for reference only)
+
 ## [2.2.42] - 2026-11-18
 
 ### Added
@@ -13,6 +25,7 @@ All notable changes to **MusicWidget** are documented here. The format is based 
 - Playback EFX redesigned after Mochi’s live graph: always-on LibVLC spatializer via media options, lowshelf-style bass
 - Vocal remover upgraded to **UVR-MDX-NET-Inst_HQ_3** → 44.1 kHz WAV (rejects empty / center-cancel fakes)
 - Race-safe playback generation tokens; removed fragile post-Play `Thread.Sleep` seeks
+
 
 ## [2.2.41] - 2026-11-10
 

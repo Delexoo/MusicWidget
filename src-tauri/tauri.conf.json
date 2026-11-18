@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MusicWidget",
+  "version": "2.3.0",
+  "identifier": "com.delexo.musicwidget",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "MusicWidget",
+        "width": 420,
+        "height": 640,
+        "minWidth": 280,
+        "minHeight": 72,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true,
+        "focus": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$AUDIO/MusicWidget/**",
+          "$HOME/Music/MusicWidget/**",
+          "$APPDATA/MusicWidget/**",
+          "$APPDATA/com.delexo.musicwidget/**",
+          "$LOCALAPPDATA/com.delexo.musicwidget/**",
+          "$RESOURCE/**"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Delexo",
+    "copyright": "Copyright (c) 2026 Delexo",
+    "category": "Music",
+    "shortDescription": "Floating desktop music player for Windows",
+    "longDescription": "MusicWidget is a floating always-on-top desktop music player with local playlists, web downloads, and live EFX.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "bundleVCRuntime": true,
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      }
+    }
+  }
+}

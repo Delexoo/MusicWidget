@@ -67,13 +67,13 @@ Play local playlists, download tracks from the web, and control everything from 
 | **Minimal UI** | A draggable pill with album art, transport controls, and an expandable dashboard |
 | **Stay out of the way** | Hide off-screen with `Alt` + `\` or the top-screen chevron; bring it back instantly |
 
-Built with **WPF** and **.NET 8**, powered by **LibVLC** for playback and **yt-dlp** / **spotDL** / **ffmpeg** for downloads (bootstrapped automatically on first use).
+Built with **Tauri 2** + **React** + **Web Audio** for live EFX, and **yt-dlp** / **ffmpeg** for downloads (bootstrapped automatically on first use).
 
 ---
 
 ## What's new
 
-**Latest: v2.2.42** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
+**Latest: v2.3.0** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching
@@ -432,14 +432,13 @@ MusicWidget/
 
 <br />
 
-**Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+**Prerequisites:** [Node.js 20+](https://nodejs.org/), [Rust](https://rustup.rs/)
 
 ```powershell
 git clone https://github.com/Delexoo/MusicWidget.git
 cd MusicWidget
-dotnet restore
-dotnet build -c Release
-dotnet run --project MusicWidget -c Release
+npm install
+npm run tauri dev
 ```
 
 </details>
@@ -449,7 +448,7 @@ dotnet run --project MusicWidget -c Release
 
 <br />
 
-**Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) | [Inno Setup 6](https://jrsoftware.org/isdl.php)
+**Prerequisites:** Node.js, Rust (Tauri bundles NSIS)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File Installer\Build-Installer.ps1
