@@ -43,6 +43,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', steps.ver.outputs.version) }}
-          name: Beats ${{ steps.ver.outputs.version }}
-          files: Installer/Output/Beats-Setup-x64.exe
+          name: MusicWidget ${{ steps.ver.outputs.version }}
+          files: Installer/Output/MusicWidget-Setup-x64.exe
           generate_release_notes: true
