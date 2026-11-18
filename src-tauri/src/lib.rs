@@ -23,9 +23,19 @@ fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn center_main_window(app: &tauri::AppHandle) {
+/// Horizontally center the pill near the top of the current monitor.
+fn place_main_window_top_center(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
-        let _ = win.center();
+        if let Ok(Some(monitor)) = win.current_monitor() {
+            let mon_size = monitor.size();
+            let mon_pos = monitor.position();
+            let scale = monitor.scale_factor();
+            if let Ok(outer) = win.outer_size() {
+                let x = mon_pos.x + ((mon_size.width as i32 - outer.width as i32) / 2);
+                let y = mon_pos.y + (36.0 * scale).round() as i32;
+                let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+            }
+        }
     }
 }
 
@@ -54,7 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            center_main_window(app.handle());
+            place_main_window_top_center(app.handle());
 
             let show_i = MenuItem::with_id(app, "show", "Show MusicWidget", true, None::<&str>)?;
             let dash_i = MenuItem::with_id(app, "dashboard", "Open Dashboard", true, None::<&str>)?;

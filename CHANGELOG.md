@@ -2,6 +2,11 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.4] - 2026-11-18
+
+### Changed
+- Launch position is horizontally centered near the **top** of the screen (not mid-screen)
+
 ## [2.3.3] - 2026-11-18
 
 ### Changed

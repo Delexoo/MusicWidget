@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 import { animate, motion, useMotionValue } from "motion/react";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import {
+  PhysicalPosition,
+  currentMonitor,
+  getCurrentWindow,
+  LogicalSize,
+} from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
@@ -10,14 +15,27 @@ import { useMusicStore } from "./stores/musicStore";
 
 const PILL_SIZE = { width: 360, height: 88 };
 const DASH_SIZE = { width: 760, height: 820 };
+/** Logical pixels from the top of the monitor. */
+const TOP_MARGIN = 36;
 
-async function sizeWindow(open: boolean, center = false) {
+async function placeTopCenter() {
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor();
+  if (!monitor) return;
+  const outer = await win.outerSize();
+  const x =
+    monitor.position.x + Math.round((monitor.size.width - outer.width) / 2);
+  const y = monitor.position.y + Math.round(TOP_MARGIN * monitor.scaleFactor);
+  await win.setPosition(new PhysicalPosition(x, y));
+}
+
+async function sizeWindow(open: boolean, place = false) {
   try {
     const win = getCurrentWindow();
     const size = open ? DASH_SIZE : PILL_SIZE;
     await win.setSize(new LogicalSize(size.width, size.height));
     await win.setMinSize(new LogicalSize(open ? 420 : 280, open ? 440 : 72));
-    if (center) await win.center();
+    if (place) await placeTopCenter();
   } catch {
     /* best-effort in browser preview */
   }
@@ -74,7 +92,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void sizeWindow(false, true);
+    void sizeWindow(false, true); // pill size, horizontally centered near top
   }, []);
 
   useEffect(() => {

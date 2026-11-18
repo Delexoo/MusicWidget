@@ -73,7 +73,7 @@ Built with **Tauri 2** + **React** + **Web Audio** for live EFX, and **yt-dlp** 
 
 ## What's new
 
-**Latest: v2.3.3** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
+**Latest: v2.3.4** — [Full changelog](CHANGELOG.md) | [Release notes](https://github.com/Delexoo/MusicWidget/releases/latest)
 
 - **Playlist accordion** — expand playlists inline; click anywhere on the row header to open or close
 - **Track artwork** — album covers in playlist song lists with smart caching

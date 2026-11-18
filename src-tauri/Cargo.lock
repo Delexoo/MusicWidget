@@ -2227,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "musicwidget"
-version = "2.3.3"
+version = "2.3.4"
 dependencies = [
  "serde",
  "serde_json",
