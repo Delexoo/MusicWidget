@@ -1176,16 +1176,16 @@
                         Tag="False"
                         ToolTip="Bass boost: click to cycle Off → 1 → 2 → 3 (extreme)"
                         Click="EffectBassBoost_Click"/>
-                <ToggleButton x:Name="EffectReverbButton"
-                              Style="{StaticResource EffectChipToggle}"
-                              Content="Reverb"
-                              ToolTip="Add hall reverb (playback speed unchanged)"
-                              Checked="EffectReverb_Changed"
-                              Unchecked="EffectReverb_Changed"/>
+                <Button x:Name="EffectReverbButton"
+                        Style="{StaticResource EffectChipButton}"
+                        Content="Reverb off"
+                        Tag="False"
+                        ToolTip="Hall reverb: click to cycle Off → 25% → 50% → 75% → 100% (no engine restart)"
+                        Click="EffectReverb_Click"/>
                 <ToggleButton x:Name="EffectVocalRemoverButton"
                               Style="{StaticResource EffectChipToggle}"
-                              Content="Vocal remover · beta"
-                              ToolTip="Beta — AI vocal remover (demucs). Runs when you turn it on (not during downloads). First use downloads tools/models; each track is processed once and cached. Playlist files are not changed."
+                              Content="Vocal remover"
+                              ToolTip="AI vocal remover (UVR-MDX HQ → WAV). Per-track; first use downloads tools/models. Playlist files are not changed. Crossfades when ready."
                               Checked="EffectVocalRemover_Changed"
                               Unchecked="EffectVocalRemover_Changed"/>
               </StackPanel>

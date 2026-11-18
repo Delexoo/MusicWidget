@@ -11,11 +11,13 @@ using System.Threading.Tasks;
 namespace MusicWidget.Services;
 
 /// <summary>
-/// AI vocal→instrumental separation via demucs-onnx (karaoke mix), with on-disk cache.
-/// Never modifies playlist source files.
+/// AI vocal→instrumental separation via UVR-MDX-NET-Inst_HQ_3 (audio-separator),
+/// writing 44.1 kHz WAV caches. Never modifies playlist source files.
 /// </summary>
 public sealed class StemSeparationService
 {
+    public const string CacheMarker = "mdx-instrumental";
+
     private readonly ToolBootstrapper _tools;
     private readonly string _stemsDir;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _keyLocks = new(StringComparer.OrdinalIgnoreCase);
@@ -32,13 +34,13 @@ public sealed class StemSeparationService
     public static string ComputeCacheKey(string sourcePath)
     {
         var info = new FileInfo(sourcePath);
-        var payload = $"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+        var payload = $"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{CacheMarker}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     public string GetCachePath(string sourcePath) =>
-        Path.Combine(_stemsDir, ComputeCacheKey(sourcePath) + ".mp3");
+        Path.Combine(_stemsDir, ComputeCacheKey(sourcePath) + ".wav");
 
     public string? TryGetCachedInstrumental(string sourcePath)
     {
@@ -50,7 +52,7 @@ public sealed class StemSeparationService
             }
 
             var cached = GetCachePath(sourcePath);
-            return File.Exists(cached) && new FileInfo(cached).Length > 1024 ? cached : null;
+            return File.Exists(cached) && new FileInfo(cached).Length > 4096 ? cached : null;
         }
         catch
         {
@@ -58,9 +60,6 @@ public sealed class StemSeparationService
         }
     }
 
-    /// <summary>
-    /// Returns a cached instrumental path, running demucs-onnx when needed.
-    /// </summary>
     public async Task<string> GetOrCreateInstrumentalAsync(
         string sourcePath,
         IProgress<DownloadProgressUpdate>? progress = null,
@@ -92,8 +91,8 @@ public sealed class StemSeparationService
             await _tools.EnsureVocalSeparatorAsync(progress, ct);
 
             progress?.Report(new DownloadProgressUpdate(5,
-                "Removing vocals (AI)… first run downloads the model."));
-            return await RunDemucsKaraokeAsync(sourcePath, key, progress, ct);
+                "Removing vocals (MDX HQ)… first run downloads the model."));
+            return await RunMdxInstrumentalAsync(sourcePath, key, progress, ct);
         }
         finally
         {
@@ -101,14 +100,15 @@ public sealed class StemSeparationService
         }
     }
 
-    private async Task<string> RunDemucsKaraokeAsync(
+    private async Task<string> RunMdxInstrumentalAsync(
         string sourcePath,
         string key,
         IProgress<DownloadProgressUpdate>? progress,
         CancellationToken ct)
     {
         var workDir = Path.Combine(_stemsDir, "tmp-" + key);
-        var cachePath = Path.Combine(_stemsDir, key + ".mp3");
+        var cachePath = Path.Combine(_stemsDir, key + ".wav");
+        var scriptPath = _tools.VocalSeparateScriptPath;
 
         try
         {
@@ -119,11 +119,14 @@ public sealed class StemSeparationService
 
             Directory.CreateDirectory(workDir);
 
-            var cli = _tools.VocalSeparatorCli;
-            var useModule = !File.Exists(cli);
+            if (!File.Exists(scriptPath))
+            {
+                throw new InvalidOperationException("Vocal separator script is missing. Reinstall MusicWidget tools.");
+            }
+
             var psi = new ProcessStartInfo
             {
-                FileName = useModule ? _tools.VocalSeparatorPython : cli,
+                FileName = _tools.VocalSeparatorPython,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -134,23 +137,12 @@ public sealed class StemSeparationService
             psi.Environment["PATH"] = _tools.ToolsDirectory + Path.PathSeparator
                 + (Environment.GetEnvironmentVariable("PATH") ?? string.Empty);
 
-            if (useModule)
-            {
-                psi.ArgumentList.Add("-m");
-                psi.ArgumentList.Add("demucs_onnx");
-            }
-
-            psi.ArgumentList.Add("separate");
+            psi.ArgumentList.Add(scriptPath);
             psi.ArgumentList.Add(sourcePath);
             psi.ArgumentList.Add(workDir);
-            // Single-file htdemucs + fp16weights (~166MB) is much lighter than the FT bag.
-            psi.ArgumentList.Add("--model");
-            psi.ArgumentList.Add("htdemucs");
-            psi.ArgumentList.Add("--karaoke");
-            psi.ArgumentList.Add("--mp3");
-            psi.ArgumentList.Add("--small");
-            psi.ArgumentList.Add("--providers");
-            psi.ArgumentList.Add("auto");
+            psi.ArgumentList.Add(_tools.VocalModelDirectory);
+            psi.ArgumentList.Add(_tools.VocalModelFileName);
+            psi.ArgumentList.Add(cachePath);
 
             using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
             var tcs = new TaskCompletionSource<int>();
@@ -158,6 +150,7 @@ public sealed class StemSeparationService
 
             var log = new StringBuilder();
             var logLines = 0;
+            var sawOk = false;
 
             void OnLine(string? line)
             {
@@ -168,12 +161,19 @@ public sealed class StemSeparationService
                     logLines++;
                 }
 
-                if (line.Contains('%', StringComparison.Ordinal))
+                if (line.Contains("MUSICWIDGET_OK", StringComparison.Ordinal)
+                    || line.Contains("MOCHI_OK", StringComparison.Ordinal))
+                {
+                    sawOk = true;
+                    progress?.Report(new DownloadProgressUpdate(95, "Validating instrumental…"));
+                }
+                else if (line.Contains('%', StringComparison.Ordinal))
                 {
                     progress?.Report(new DownloadProgressUpdate(-1, "Removing vocals… " + TrimStatus(line)));
                 }
                 else if (line.Contains("Downloading", StringComparison.OrdinalIgnoreCase)
-                         || line.Contains("Fetching", StringComparison.OrdinalIgnoreCase))
+                         || line.Contains("Fetching", StringComparison.OrdinalIgnoreCase)
+                         || line.Contains("Loading", StringComparison.OrdinalIgnoreCase))
                 {
                     progress?.Report(new DownloadProgressUpdate(-1, TrimStatus(line)));
                 }
@@ -184,10 +184,9 @@ public sealed class StemSeparationService
 
             if (!proc.Start())
             {
-                throw new InvalidOperationException("Failed to start demucs-onnx.");
+                throw new InvalidOperationException("Failed to start MDX vocal remover.");
             }
 
-            // Keep the UI snappy while demucs runs in the background.
             try { proc.PriorityClass = ProcessPriorityClass.BelowNormal; }
             catch { /* priority is best-effort */ }
 
@@ -209,7 +208,7 @@ public sealed class StemSeparationService
                     throw new OperationCanceledException(ct);
                 }
 
-                if (exit != 0)
+                if (exit != 0 || !sawOk || !File.Exists(cachePath) || new FileInfo(cachePath).Length < 4096)
                 {
                     var detail = log.ToString();
                     if (detail.Length > 600) detail = detail[^600..];
@@ -218,19 +217,6 @@ public sealed class StemSeparationService
                 }
             }
 
-            var karaoke = FindKaraokeOutput(workDir);
-            if (karaoke is null)
-            {
-                throw new InvalidOperationException(
-                    "Vocal remover finished but no instrumental file was produced.");
-            }
-
-            if (File.Exists(cachePath))
-            {
-                File.Delete(cachePath);
-            }
-
-            File.Move(karaoke, cachePath);
             progress?.Report(new DownloadProgressUpdate(100, "Vocals removed."));
             return cachePath;
         }
@@ -244,32 +230,6 @@ public sealed class StemSeparationService
                 }
             }
             catch { /* temp cleanup best-effort */ }
-        }
-    }
-
-    private static string? FindKaraokeOutput(string workDir)
-    {
-        try
-        {
-            var files = Directory.EnumerateFiles(workDir, "*.*", SearchOption.AllDirectories)
-                .Where(f => f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
-                            || f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            var karaoke = files.FirstOrDefault(f =>
-                Path.GetFileName(f).Contains("karaoke", StringComparison.OrdinalIgnoreCase));
-            if (karaoke is not null) return karaoke;
-
-            return files
-                .Select(f => new FileInfo(f))
-                .Where(fi => fi.Length > 1024)
-                .OrderByDescending(fi => fi.Length)
-                .Select(fi => fi.FullName)
-                .FirstOrDefault();
-        }
-        catch
-        {
-            return null;
         }
     }
 

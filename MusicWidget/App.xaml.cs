@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -76,8 +77,9 @@ public partial class App : Application
             BackgroundDownloads = new BackgroundDownloadService();
             Artwork = new ArtworkService(ArtworkDir);
 
-            // Warm vocal-remover tools + start prefetch when the effect is already on.
-            if (Settings.Current.VocalRemover)
+            // Warm vocal-remover tools when any track prefers instrumental.
+            if (Settings.Current.VocalRemover
+                || (Settings.Current.VocalsOffByPath?.Values.Any(v => v) ?? false))
             {
                 StemPrefetch.SetEnabled(true);
             }

@@ -24,9 +24,9 @@
 
     <!-- Version + author metadata is shown in Explorer's file properties and
          picked up by Inno Setup via the {#GetVersionString(...)} preprocessor. -->
-    <Version>2.2.41</Version>
-    <AssemblyVersion>2.2.41.0</AssemblyVersion>
-    <FileVersion>2.2.41.0</FileVersion>
+    <Version>2.2.42</Version>
+    <AssemblyVersion>2.2.42.0</AssemblyVersion>
+    <FileVersion>2.2.42.0</FileVersion>
     <Product>MusicWidget</Product>
     <Company>Delexo</Company>
     <Authors>Delexo</Authors>

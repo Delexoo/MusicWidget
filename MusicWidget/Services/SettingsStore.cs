@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -36,13 +37,25 @@ public sealed class SettingsStore
                     var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
                     if (loaded is not null)
                     {
-                        // Older builds stored SlowedReverb; map onto Reverb when missing.
-                        if (!loaded.Reverb
-                            && json.Contains("\"SlowedReverb\"", StringComparison.Ordinal)
-                            && (json.Contains("\"SlowedReverb\": true", StringComparison.Ordinal)
-                                || json.Contains("\"SlowedReverb\":true", StringComparison.Ordinal)))
+                        // Older builds stored bool Reverb / SlowedReverb — map onto ReverbAmount.
+                        if (loaded.ReverbAmount <= 0
+                            && ((json.Contains("\"Reverb\": true", StringComparison.Ordinal)
+                                 || json.Contains("\"Reverb\":true", StringComparison.Ordinal))
+                                || (json.Contains("\"SlowedReverb\": true", StringComparison.Ordinal)
+                                    || json.Contains("\"SlowedReverb\":true", StringComparison.Ordinal))))
                         {
-                            loaded.Reverb = true;
+                            loaded.ReverbAmount = 0.55;
+                        }
+
+                        if (loaded.VocalsOffByPath is null)
+                        {
+                            loaded.VocalsOffByPath =
+                                new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                        }
+                        else if (loaded.VocalsOffByPath.Comparer != StringComparer.OrdinalIgnoreCase)
+                        {
+                            loaded.VocalsOffByPath =
+                                new Dictionary<string, bool>(loaded.VocalsOffByPath, StringComparer.OrdinalIgnoreCase);
                         }
 
                         Current = loaded;

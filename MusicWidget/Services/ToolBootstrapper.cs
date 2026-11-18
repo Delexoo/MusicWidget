@@ -33,12 +33,15 @@ public sealed class ToolBootstrapper
     private const string YtDlpChannelMarkerFile = ".yt-dlp-channel";
     private const string YtDlpChannelMarkerValue = "nightly-v1";
 
-    // Embeddable CPython + demucs-onnx for AI vocal remover (lazy, first toggle).
+    // Embeddable CPython + audio-separator (UVR-MDX HQ) for AI vocal remover (lazy).
     private const string PythonEmbedUrl =
         "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip";
     private const string GetPipUrl = "https://bootstrap.pypa.io/get-pip.py";
     private const string VocalSepVersionMarkerFile = ".vocal-sep-version";
-    private const string VocalSepVersionMarkerValue = "demucs-onnx-2";
+    private const string VocalSepVersionMarkerValue = "mdx-hq-1";
+    private const string VocalModelFile = "UVR-MDX-NET-Inst_HQ_3.onnx";
+    private const string VocalModelUrl =
+        "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR-MDX-NET-Inst_HQ_3.onnx";
 
     private readonly string _toolsDir;
     private readonly string _vocalSepDir;
@@ -51,8 +54,10 @@ public sealed class ToolBootstrapper
     public string SpotDlPath { get; }
     public string ToolsDirectory => _toolsDir;
     public string VocalSepDirectory => _vocalSepDir;
-    public string VocalSeparatorPython { get; }
-    public string VocalSeparatorCli { get; }
+    public string VocalSeparatorPython { get; private set; }
+    public string VocalModelDirectory { get; }
+    public string VocalModelFileName => VocalModelFile;
+    public string VocalSeparateScriptPath { get; }
 
     public ToolBootstrapper(string toolsDir)
     {
@@ -63,8 +68,14 @@ public sealed class ToolBootstrapper
         SpotDlPath = Path.Combine(_toolsDir, "spotdl.exe");
         _vocalSepDir = Path.Combine(_toolsDir, "vocal-sep");
         Directory.CreateDirectory(_vocalSepDir);
-        VocalSeparatorPython = Path.Combine(_vocalSepDir, "python", "python.exe");
-        VocalSeparatorCli = Path.Combine(_vocalSepDir, "python", "Scripts", "demucs-onnx.exe");
+        VocalModelDirectory = Path.Combine(_vocalSepDir, "models");
+        Directory.CreateDirectory(VocalModelDirectory);
+        VocalSeparateScriptPath = Path.Combine(_vocalSepDir, "separate_instrumental.py");
+        // Prefer venv when present (MDX); fall back to embeddable python path.
+        var venvPy = Path.Combine(_vocalSepDir, "venv", "Scripts", "python.exe");
+        VocalSeparatorPython = File.Exists(venvPy)
+            ? venvPy
+            : Path.Combine(_vocalSepDir, "python", "python.exe");
     }
 
     public bool AreToolsReady => File.Exists(YtDlpPath) && File.Exists(FfmpegPath);
@@ -73,7 +84,13 @@ public sealed class ToolBootstrapper
 
     public bool IsVocalSeparatorReady =>
         File.Exists(VocalSeparatorPython)
-        && File.Exists(Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile));
+        && File.Exists(Path.Combine(VocalModelDirectory, VocalModelFile))
+        && File.Exists(VocalSeparateScriptPath)
+        && File.Exists(Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile))
+        && string.Equals(
+            SafeReadText(Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile)).Trim(),
+            VocalSepVersionMarkerValue,
+            StringComparison.Ordinal);
 
     public async Task EnsureToolsAsync(
         IProgress<DownloadProgressUpdate>? progress = null,
@@ -235,7 +252,7 @@ public sealed class ToolBootstrapper
     }
 
     /// <summary>
-    /// Ensures embeddable Python + demucs-onnx are installed for AI vocal removal.
+    /// Ensures Python + audio-separator + UVR-MDX HQ model for AI vocal removal.
     /// Large one-time download; progress is reported like other tool bootstraps.
     /// </summary>
     public async Task EnsureVocalSeparatorAsync(
@@ -259,37 +276,25 @@ public sealed class ToolBootstrapper
 
             using var http = new HttpClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd(AppBranding.UserAgent);
-            http.Timeout = TimeSpan.FromMinutes(30);
+            http.Timeout = TimeSpan.FromMinutes(45);
 
-            var pythonDir = Path.Combine(_vocalSepDir, "python");
-            if (!File.Exists(VocalSeparatorPython))
-            {
-                progress?.Report(new DownloadProgressUpdate(2,
-                    "Downloading Python for vocal remover (~15MB)..."));
-                var zipPath = Path.Combine(_vocalSepDir, "python-embed.zip");
-                await DownloadFileAsync(http, PythonEmbedUrl, zipPath, progress,
-                    "Downloading Python", 2, 25, ct);
+            WriteVocalSeparateScript();
 
-                progress?.Report(new DownloadProgressUpdate(26, "Extracting Python..."));
-                if (Directory.Exists(pythonDir))
-                {
-                    try { Directory.Delete(pythonDir, recursive: true); } catch { /* retry extract */ }
-                }
+            progress?.Report(new DownloadProgressUpdate(2, "Preparing Python for vocal remover..."));
+            await EnsureVocalPythonAsync(http, progress, ct);
 
-                Directory.CreateDirectory(pythonDir);
-                ZipFile.ExtractToDirectory(zipPath, pythonDir, overwriteFiles: true);
-                try { File.Delete(zipPath); } catch { }
-            }
-
-            // Always re-apply: partial installs may leave embeddable Python without site-packages.
-            EnableEmbeddableSitePackages(pythonDir);
-
-            progress?.Report(new DownloadProgressUpdate(30, "Bootstrapping pip..."));
-            await EnsurePipAsync(http, progress, ct);
-
-            progress?.Report(new DownloadProgressUpdate(45,
-                "Installing demucs-onnx (AI vocal remover)..."));
+            progress?.Report(new DownloadProgressUpdate(40,
+                "Installing audio-separator (MDX HQ)..."));
             await PipInstallVocalSeparatorAsync(progress, ct);
+
+            var modelPath = Path.Combine(VocalModelDirectory, VocalModelFile);
+            if (!File.Exists(modelPath))
+            {
+                progress?.Report(new DownloadProgressUpdate(70,
+                    "Downloading UVR-MDX Inst HQ model..."));
+                await DownloadFileAsync(http, VocalModelUrl, modelPath, progress,
+                    "Downloading MDX model", 70, 96, ct);
+            }
 
             File.WriteAllText(
                 Path.Combine(_vocalSepDir, VocalSepVersionMarkerFile),
@@ -301,6 +306,165 @@ public sealed class ToolBootstrapper
         {
             _vocalSepGate.Release();
         }
+    }
+
+    private async Task EnsureVocalPythonAsync(
+        HttpClient http,
+        IProgress<DownloadProgressUpdate>? progress,
+        CancellationToken ct)
+    {
+        var venvPy = Path.Combine(_vocalSepDir, "venv", "Scripts", "python.exe");
+        if (File.Exists(venvPy))
+        {
+            VocalSeparatorPython = venvPy;
+            return;
+        }
+
+        // Prefer system Python to create a venv (torch/audio-separator need full site-packages).
+        var systemPy = await FindSystemPythonAsync(ct);
+        if (systemPy is not null)
+        {
+            progress?.Report(new DownloadProgressUpdate(8, "Creating vocal-remover venv..."));
+            var venvDir = Path.Combine(_vocalSepDir, "venv");
+            var (code, err) = await RunProcessAsync(systemPy, ["-m", "venv", venvDir], ct);
+            if (code == 0 && File.Exists(venvPy))
+            {
+                VocalSeparatorPython = venvPy;
+                return;
+            }
+
+            CrashLog.Write(
+                new InvalidOperationException(err),
+                "ToolBootstrapper.EnsureVocalPython.venv");
+        }
+
+        // Fallback: embeddable CPython (may lack wheels for some deps).
+        var pythonDir = Path.Combine(_vocalSepDir, "python");
+        var embedPy = Path.Combine(pythonDir, "python.exe");
+        if (!File.Exists(embedPy))
+        {
+            progress?.Report(new DownloadProgressUpdate(5,
+                "Downloading Python for vocal remover (~15MB)..."));
+            var zipPath = Path.Combine(_vocalSepDir, "python-embed.zip");
+            await DownloadFileAsync(http, PythonEmbedUrl, zipPath, progress,
+                "Downloading Python", 5, 22, ct);
+
+            progress?.Report(new DownloadProgressUpdate(23, "Extracting Python..."));
+            if (Directory.Exists(pythonDir))
+            {
+                try { Directory.Delete(pythonDir, recursive: true); } catch { /* retry extract */ }
+            }
+
+            Directory.CreateDirectory(pythonDir);
+            ZipFile.ExtractToDirectory(zipPath, pythonDir, overwriteFiles: true);
+            try { File.Delete(zipPath); } catch { }
+        }
+
+        EnableEmbeddableSitePackages(pythonDir);
+        VocalSeparatorPython = embedPy;
+
+        progress?.Report(new DownloadProgressUpdate(28, "Bootstrapping pip..."));
+        await EnsurePipAsync(http, progress, ct);
+    }
+
+    private static async Task<string?> FindSystemPythonAsync(CancellationToken ct)
+    {
+        foreach (var (file, args) in new (string, string[])[]
+                 {
+                     ("py", ["-3", "-c", "import sys; print(sys.executable)"]),
+                     ("python", ["-c", "import sys; print(sys.executable)"]),
+                     ("python3", ["-c", "import sys; print(sys.executable)"]),
+                 })
+        {
+            try
+            {
+                var (code, stdout) = await RunProcessCaptureAsync(file, args, ct);
+                if (code == 0)
+                {
+                    var path = stdout.Trim();
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        return path;
+                    }
+                }
+            }
+            catch
+            {
+                /* try next */
+            }
+        }
+
+        return null;
+    }
+
+    private void WriteVocalSeparateScript()
+    {
+        const string script = """
+import sys
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+from audio_separator.separator import Separator
+
+def main() -> None:
+    input_path, output_dir, model_dir, model_name, target_path = sys.argv[1:6]
+    output_dir = str(Path(output_dir))
+    target = Path(target_path)
+    separator = Separator(
+        model_file_dir=model_dir,
+        output_dir=output_dir,
+        output_format="WAV",
+        output_single_stem="Instrumental",
+        sample_rate=44100,
+        mdx_params={
+            "hop_length": 1024,
+            "segment_size": 256,
+            "overlap": 0.25,
+            "batch_size": 1,
+            "enable_denoise": False,
+        },
+    )
+    separator.load_model(model_filename=model_name)
+    files = separator.separate(
+        input_path,
+        custom_output_names={"Instrumental": "mw_instrumental"},
+    )
+    produced = None
+    for name in files or []:
+        path = Path(name)
+        if not path.is_file():
+            path = Path(output_dir) / name
+        if path.is_file():
+            produced = path
+    if produced is None:
+        raise SystemExit("Vocal model finished without an instrumental file")
+    if produced.resolve() != target.resolve():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            target.unlink()
+        produced.replace(target)
+    data, _sr = sf.read(str(target), always_2d=True, frames=48000)
+    if data.ndim != 2 or data.shape[1] < 2 or data.shape[0] < 1000:
+        raise SystemExit("Instrumental file was empty")
+    left = data[:, 0]
+    right = data[:, 1]
+    if float(np.std(left)) > 1e-4 and float(np.std(right)) > 1e-4:
+        corr = float(np.corrcoef(left, right)[0, 1])
+        if np.isfinite(corr) and corr < -0.98:
+            raise SystemExit("Vocal removal collapsed to a center-cancel mix")
+    print("MUSICWIDGET_OK", flush=True)
+
+if __name__ == "__main__":
+    main()
+""";
+        File.WriteAllText(VocalSeparateScriptPath, script);
+    }
+
+    private static string SafeReadText(string path)
+    {
+        try { return File.ReadAllText(path); }
+        catch { return string.Empty; }
     }
 
     private static void EnableEmbeddableSitePackages(string pythonDir)
@@ -366,38 +530,115 @@ public sealed class ToolBootstrapper
         IProgress<DownloadProgressUpdate>? progress,
         CancellationToken ct)
     {
-        // Prefer DirectML on Windows; fall back to CPU onnxruntime.
-        var packages = new[]
-        {
-            "demucs-onnx",
-            "demucs-onnx[mp3]",
-            "onnxruntime-directml",
-        };
+        await RunPythonAsync(
+            ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel", "--no-warn-script-location"],
+            ct);
 
-        var installArgs = new List<string>
+        // Primary path: audio-separator[cpu] (MDX ONNX).
+        var (code, stderr) = await RunPythonAsync(
+            ["-m", "pip", "install", "--upgrade", "--no-warn-script-location", "audio-separator[cpu]"],
+            ct);
+
+        if (code != 0 || !await SeparatorImportOkAsync(ct))
         {
-            "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
-        };
-        installArgs.AddRange(packages);
-        var (code, stderr) = await RunPythonAsync(installArgs, ct);
-        if (code != 0)
-        {
-            progress?.Report(new DownloadProgressUpdate(60,
-                "DirectML install failed; trying CPU onnxruntime..."));
+            progress?.Report(new DownloadProgressUpdate(50,
+                "Retrying MDX packages without diffq (Windows)..."));
+            // Skip broken Windows native diffq; MDX Inst HQ only needs ONNX + torch.
+            await RunPythonAsync(
+                ["-m", "pip", "install", "--upgrade", "--no-warn-script-location",
+                    "audio-separator", "--no-deps"],
+                ct);
             (code, stderr) = await RunPythonAsync(
                 [
                     "-m", "pip", "install", "--upgrade", "--no-warn-script-location",
-                    "demucs-onnx", "demucs-onnx[mp3]", "onnxruntime"
+                    "onnxruntime>=1.17", "torch>=2.3", "numpy>=2", "librosa>=0.10",
+                    "soundfile>=0.12", "scipy>=1.13", "pydub>=0.25", "tqdm", "requests>=2",
+                    "resampy>=0.4", "beartype>=0.18.5,<0.19.0", "pyyaml", "ml_collections",
+                    "einops>=0.7", "six>=1.16", "packaging", "samplerate==0.1.0",
+                    "julius>=0.2", "rotary-embedding-torch>=0.6.1,<0.7.0",
+                    "audioop-lts>=0.2.1", "onnx-weekly", "onnx2torch-py313>=1.6", "audioread"
                 ],
                 ct);
+
+            await WriteDiffqStubAsync(ct);
         }
 
-        if (code != 0)
+        if (code != 0 || !await SeparatorImportOkAsync(ct))
         {
             var detail = string.IsNullOrWhiteSpace(stderr) ? "" : " " + TrimError(stderr);
             throw new InvalidOperationException(
-                "Could not install demucs-onnx. Check your network and try again." + detail);
+                "Could not install audio-separator (MDX). Install Python 3.12 from python.org (Add to PATH), then retry."
+                + detail);
         }
+    }
+
+    private async Task<bool> SeparatorImportOkAsync(CancellationToken ct)
+    {
+        var (code, _) = await RunPythonAsync(
+            ["-c", "import audio_separator.separator"],
+            ct);
+        return code == 0;
+    }
+
+    private async Task WriteDiffqStubAsync(CancellationToken ct)
+    {
+        // Provide importable diffq so Demucs helpers can import; MDX does not call it.
+        const string stub =
+            "import site, pathlib\n"
+            + "pkgs=[pathlib.Path(p) for p in site.getsitepackages() if p.replace(chr(92),'/').endswith('site-packages')]\n"
+            + "root=(pkgs[0] if pkgs else pathlib.Path(site.getsitepackages()[0]))/'diffq'\n"
+            + "root.mkdir(parents=True, exist_ok=True)\n"
+            + "(root/'__init__.py').write_text('class DiffQuantizer: pass\\nclass UniformQuantizer: pass\\n"
+            + "def restore_quantized_state(*a,**k):\\n    raise RuntimeError(\"diffq unavailable\")\\n', encoding='utf-8')\n";
+        await RunPythonAsync(["-c", stub], ct);
+    }
+
+    private static async Task<(int ExitCode, string Stdout)> RunProcessCaptureAsync(
+        string fileName,
+        IReadOnlyList<string> args,
+        CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        using var proc = Process.Start(psi);
+        if (proc is null) return (-1, string.Empty);
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+        await proc.WaitForExitAsync(ct);
+        _ = await stderrTask;
+        return (proc.ExitCode, await stdoutTask);
+    }
+
+    private static async Task<(int ExitCode, string Stderr)> RunProcessAsync(
+        string fileName,
+        IReadOnlyList<string> args,
+        CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        using var proc = Process.Start(psi);
+        if (proc is null) return (-1, "failed to start");
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+        await proc.WaitForExitAsync(ct);
+        _ = await stdoutTask;
+        return (proc.ExitCode, await stderrTask);
     }
 
     /// <summary>

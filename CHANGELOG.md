@@ -2,6 +2,18 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.42] - 2026-11-18
+
+### Added
+- Continuous hall reverb (Off → 25% → 50% → 75% → 100%) without restarting the audio engine
+- Dual-player ~70 ms crossfade when swapping original ↔ instrumental mid-track
+- Per-track vocal-remover memory (`VocalsOffByPath`)
+
+### Changed
+- Playback EFX redesigned after Mochi’s live graph: always-on LibVLC spatializer via media options, lowshelf-style bass
+- Vocal remover upgraded to **UVR-MDX-NET-Inst_HQ_3** → 44.1 kHz WAV (rejects empty / center-cancel fakes)
+- Race-safe playback generation tokens; removed fragile post-Play `Thread.Sleep` seeks
+
 ## [2.2.41] - 2026-11-10
 
 ### Added

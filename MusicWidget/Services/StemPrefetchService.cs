@@ -8,7 +8,7 @@ using MusicWidget.Models;
 namespace MusicWidget.Services;
 
 /// <summary>
-/// Background queue that builds instrumental caches (demucs) ahead of playback so
+/// Background queue that builds instrumental caches (MDX HQ WAV) ahead of playback so
 /// vocal remover is ready when the user hits play. Single-flight, below-play priority.
 /// </summary>
 public sealed class StemPrefetchService
@@ -52,7 +52,7 @@ public sealed class StemPrefetchService
         _ = WarmToolsAsync();
     }
 
-    /// <summary>Installs Python/demucs in the background so first separation is faster.</summary>
+    /// <summary>Installs Python/MDX tools in the background so first separation is faster.</summary>
     public Task WarmToolsAsync()
     {
         if (App.Tools.IsVocalSeparatorReady)
@@ -76,7 +76,7 @@ public sealed class StemPrefetchService
 
     /// <summary>
     /// When playback needs an instrumental right now, cancel a different in-flight prefetch
-    /// so demucs CPU goes to the track the user just clicked.
+    /// so MDX CPU goes to the track the user just clicked.
     /// </summary>
     public void YieldForUrgent(string sourcePath)
     {

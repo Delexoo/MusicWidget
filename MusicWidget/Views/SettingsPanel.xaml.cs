@@ -202,6 +202,7 @@ public partial class SettingsPanel : UserControl
             UpdatePlaylistPlayingStates();
             UpdateNowPlayingFooter();
             UpdateFooterProgress();
+            SyncEffectToggles();
         });
     }
 
@@ -350,8 +351,15 @@ public partial class SettingsPanel : UserControl
                 3 => "Bass 3",
                 _ => "Bass off",
             };
-            EffectReverbButton.IsChecked = App.Player.Reverb;
-            EffectVocalRemoverButton.IsChecked = App.Player.VocalRemover;
+
+            var reverbPct = (int)Math.Round(App.Player.ReverbAmount * 100);
+            EffectReverbButton.Tag = reverbPct > 0 ? "True" : "False";
+            EffectReverbButton.Content = reverbPct <= 0 ? "Reverb off" : $"Reverb {reverbPct}%";
+
+            var vocalsOff = App.Player.CurrentTrack is { } t
+                ? App.Player.IsVocalsOffForTrack(t.FilePath)
+                : App.Player.VocalRemover;
+            EffectVocalRemoverButton.IsChecked = vocalsOff;
             EffectVocalRemoverButton.IsEnabled = !App.Player.IsVocalSeparationBusy;
         }
         finally
@@ -368,10 +376,12 @@ public partial class SettingsPanel : UserControl
         SyncEffectToggles();
     }
 
-    private void EffectReverb_Changed(object sender, RoutedEventArgs e)
+    private void EffectReverb_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEffectToggle || !_isLoaded) return;
-        App.Player.SetReverb(EffectReverbButton.IsChecked == true);
+        e.Handled = true;
+        App.Player.CycleReverbAmount();
+        SyncEffectToggles();
     }
 
     private void EffectVocalRemover_Changed(object sender, RoutedEventArgs e)
