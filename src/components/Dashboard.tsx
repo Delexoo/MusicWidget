@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { trackCoverUrl } from "../services/music/musicApi";
 import type { PlaylistInfo, TrackInfo } from "../services/music/types";
 import { useMusicStore } from "../stores/musicStore";
@@ -13,6 +14,7 @@ import {
   IconEdit,
   IconLike,
   IconLoop,
+  IconMinimize,
   IconMore,
   IconMusic,
   IconNext,
@@ -163,8 +165,18 @@ export function Dashboard() {
           <button
             type="button"
             className="ghost-btn"
-            title="Close"
+            title="Minimize dashboard"
             onClick={() => setDashboardOpen(false)}
+          >
+            <IconMinimize />
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            title="Close MusicWidget"
+            onClick={() => {
+              void invoke("quit_app").catch(() => undefined);
+            }}
           >
             <IconClose />
           </button>

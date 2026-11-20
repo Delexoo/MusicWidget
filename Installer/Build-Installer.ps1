@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
 
-Write-Host "==> Building MusicWidget (Tauri 2.3.5)..." -ForegroundColor Cyan
+Write-Host "==> Building MusicWidget (Tauri 2.3.6)..." -ForegroundColor Cyan
 
 if (-not $SkipFrontend) {
     npm run build
@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "tauri build failed with exit code $LASTEXITCODE"
 }
 
-$nsis = Join-Path $RepoRoot "src-tauri\target\release\bundle\nsis\MusicWidget_2.3.5_x64-setup.exe"
+$nsis = Join-Path $RepoRoot "src-tauri\target\release\bundle\nsis\MusicWidget_2.3.6_x64-setup.exe"
 if (-not (Test-Path $nsis)) {
     # Fallback: any MusicWidget_*_x64-setup.exe
     $nsis = Get-ChildItem (Join-Path $RepoRoot "src-tauri\target\release\bundle\nsis") -Filter "MusicWidget_*_x64-setup.exe" |
@@ -40,7 +40,7 @@ $out = Join-Path $outDir "MusicWidget-Setup-x64.exe"
 Copy-Item $nsis $out -Force
 
 $sizeMb = [math]::Round((Get-Item $out).Length / 1MB)
-$payload = @{ version = "2.3.5"; asset = "MusicWidget-Setup-x64.exe"; sizeMb = $sizeMb } | ConvertTo-Json
+$payload = @{ version = "2.3.6"; asset = "MusicWidget-Setup-x64.exe"; sizeMb = $sizeMb } | ConvertTo-Json
 Set-Content -Path (Join-Path $RepoRoot "version.json") -Value $payload -Encoding utf8
 Set-Content -Path (Join-Path $RepoRoot "website\version.json") -Value $payload -Encoding utf8
 

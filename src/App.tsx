@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { Dashboard } from "./components/Dashboard";
 import { Pill } from "./components/Pill";
+import { recenterWindow } from "./services/windowPlacement";
 import { useMusicStore } from "./stores/musicStore";
 
 const PILL_SIZE = { width: 360, height: 88 };
@@ -17,6 +18,8 @@ async function sizeWindow(open: boolean) {
     const size = open ? DASH_SIZE : PILL_SIZE;
     await win.setSize(new LogicalSize(size.width, size.height));
     await win.setMinSize(new LogicalSize(open ? 420 : 280, open ? 440 : 72));
+    // Resizing on Windows shifts the window. Put it back on the top center.
+    await recenterWindow();
   } catch {
     /* best-effort in browser preview */
   }
@@ -33,8 +36,8 @@ export default function App() {
   }, [hydrate]);
 
   useEffect(() => {
-    // The native window is already the pill size and sitting where the user
-    // left it. Resizing on this first paint nudges that position on Windows.
+    // Startup already places the pill at the top center. Resizing on this
+    // first paint would move it again.
     const firstPaint = !sizedOnce.current;
     sizedOnce.current = true;
     if (!(firstPaint && !dashboardOpen)) {

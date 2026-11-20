@@ -2,6 +2,15 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.6] - 2026-11-19
+
+### Added
+- Dashboard **Minimize** button, which closes the dashboard and leaves the player visible
+
+### Changed
+- The widget opens at the top center of the screen
+- Dashboard **Close** quits MusicWidget
+
 ## [2.3.5] - 2026-11-18
 
 ### Added
