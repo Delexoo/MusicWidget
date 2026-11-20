@@ -133,6 +133,33 @@ export function IconEdit({ size = 13, className }: IconProps) {
   );
 }
 
+export function IconPin({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M16 9V4h1V2H7v2h1v5c0 1.66-1.34 3-3 3v2h5.97V21L12 22l1.03-1V14H19v-2c-1.66 0-3-1.34-3-3z"
+      />
+    </svg>
+  );
+}
+
+export function IconRecenter({ size = 15, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        d="M12 3.5V7M12 17v3.5M3.5 12H7M17 12h3.5"
+      />
+      <circle cx="12" cy="12" r="6.25" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 export function IconMore({ size = 14, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>

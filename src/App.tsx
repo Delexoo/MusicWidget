@@ -1,11 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue } from "motion/react";
-import {
-  PhysicalPosition,
-  currentMonitor,
-  getCurrentWindow,
-  LogicalSize,
-} from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
@@ -15,27 +10,13 @@ import { useMusicStore } from "./stores/musicStore";
 
 const PILL_SIZE = { width: 360, height: 88 };
 const DASH_SIZE = { width: 760, height: 820 };
-/** Logical pixels from the top of the monitor. */
-const TOP_MARGIN = 36;
 
-async function placeTopCenter() {
-  const win = getCurrentWindow();
-  const monitor = await currentMonitor();
-  if (!monitor) return;
-  const outer = await win.outerSize();
-  const x =
-    monitor.position.x + Math.round((monitor.size.width - outer.width) / 2);
-  const y = monitor.position.y + Math.round(TOP_MARGIN * monitor.scaleFactor);
-  await win.setPosition(new PhysicalPosition(x, y));
-}
-
-async function sizeWindow(open: boolean, place = false) {
+async function sizeWindow(open: boolean) {
   try {
     const win = getCurrentWindow();
     const size = open ? DASH_SIZE : PILL_SIZE;
     await win.setSize(new LogicalSize(size.width, size.height));
     await win.setMinSize(new LogicalSize(open ? 420 : 280, open ? 440 : 72));
-    if (place) await placeTopCenter();
   } catch {
     /* best-effort in browser preview */
   }
@@ -44,6 +25,7 @@ async function sizeWindow(open: boolean, place = false) {
 export default function App() {
   const dashHeight = useMotionValue(0);
   const dashOpacity = useMotionValue(0);
+  const sizedOnce = useRef(false);
   const { ready, dashboardOpen, hydrate, setDashboardOpen } = useMusicStore();
 
   useEffect(() => {
@@ -51,7 +33,13 @@ export default function App() {
   }, [hydrate]);
 
   useEffect(() => {
-    void sizeWindow(dashboardOpen);
+    // The native window is already the pill size and sitting where the user
+    // left it. Resizing on this first paint nudges that position on Windows.
+    const firstPaint = !sizedOnce.current;
+    sizedOnce.current = true;
+    if (!(firstPaint && !dashboardOpen)) {
+      void sizeWindow(dashboardOpen);
+    }
     const h = animate(dashHeight, dashboardOpen ? 720 : 0, {
       type: "spring",
       stiffness: 380,
@@ -92,14 +80,56 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void sizeWindow(false, true); // pill size, horizontally centered near top
-  }, []);
-
-  useEffect(() => {
     const blockBrowserChrome = (e: Event) => e.preventDefault();
     document.addEventListener("contextmenu", blockBrowserChrome);
     return () => document.removeEventListener("contextmenu", blockBrowserChrome);
   }, []);
+
+  useEffect(() => {
+    const collapseIfAway = () => {
+      const { dashboardOpen, keepDashboardOpen, collapseHold } = useMusicStore.getState();
+      if (dashboardOpen && !keepDashboardOpen && collapseHold === 0) {
+        setDashboardOpen(false);
+      }
+    };
+
+    const onPointerDown = (e: MouseEvent) => {
+      const { dashboardOpen, keepDashboardOpen, collapseHold } = useMusicStore.getState();
+      if (!dashboardOpen || keepDashboardOpen || collapseHold > 0) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(
+          "[data-dashboard], [data-dashboard-toggle], [data-drag-handle], [role='dialog'], .app-modal-backdrop",
+        )
+      ) {
+        return;
+      }
+      setDashboardOpen(false);
+    };
+
+    window.addEventListener("blur", collapseIfAway);
+    window.addEventListener("mousedown", onPointerDown, true);
+    let unlisten: (() => void) | undefined;
+    try {
+      void getCurrentWindow()
+        .onFocusChanged(({ payload: focused }) => {
+          if (!focused) collapseIfAway();
+        })
+        .then((fn) => {
+          unlisten = fn;
+        })
+        .catch(() => undefined);
+    } catch {
+      /* browser preview has no native window */
+    }
+
+    return () => {
+      window.removeEventListener("blur", collapseIfAway);
+      window.removeEventListener("mousedown", onPointerDown, true);
+      unlisten?.();
+    };
+  }, [setDashboardOpen]);
 
   if (!ready) {
     return (

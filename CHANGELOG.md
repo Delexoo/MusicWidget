@@ -2,6 +2,15 @@
 
 All notable changes to **MusicWidget** are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.5] - 2026-11-18
+
+### Added
+- Dashboard **Recenter**, **Donate**, and the auto-collapse pin (dashboard stays open while the pin is on)
+
+### Changed
+- The widget reopens where you left it, instead of jumping to the top of the screen
+- Hovering the pill keeps the player body still and expands loop and settings to the left
+
 ## [2.3.4] - 2026-11-18
 
 ### Changed

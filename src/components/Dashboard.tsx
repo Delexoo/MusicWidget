@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { trackCoverUrl } from "../services/music/musicApi";
 import type { PlaylistInfo, TrackInfo } from "../services/music/types";
 import { useMusicStore } from "../stores/musicStore";
+import { openDonationPage, recenterWindow } from "../services/windowPlacement";
 import { AddMusicPanel, type AnchorRect } from "./AddMusicPanel";
 import { ConfirmModal } from "./ConfirmModal";
 import { EfxPanel } from "./EfxPanel";
@@ -16,9 +17,11 @@ import {
   IconMusic,
   IconNext,
   IconPause,
+  IconPin,
   IconPlay,
   IconPlus,
   IconPrev,
+  IconRecenter,
   IconShuffle,
   IconTrash,
 } from "./icons";
@@ -60,6 +63,8 @@ export function Dashboard() {
     liked,
     status,
     setDashboardOpen,
+    keepDashboardOpen,
+    setKeepDashboardOpen,
     togglePlaylistExpanded,
     playTrackAt,
     togglePlay,
@@ -116,27 +121,54 @@ export function Dashboard() {
 
   return (
     <div
+      data-dashboard
       className="flex h-full min-h-0 flex-col border border-[var(--border)] bg-[var(--surface)]"
       style={{
         borderRadius: "var(--radius-pill)",
         boxShadow: "2px 4px 16px rgba(0,0,0,0.33)",
       }}
     >
-      <div className="flex items-start justify-between px-4 pb-2 pt-3.5">
+      <div className="flex items-center justify-between px-4 pb-2 pt-3.5">
         <div>
           <div className="text-[17px] font-semibold tracking-tight">Dashboard</div>
           <div className="text-[11px] font-semibold text-[var(--muted)]">
             Playlists · downloads · EFX
           </div>
         </div>
-        <button
-          type="button"
-          className="ghost-btn"
-          title="Close"
-          onClick={() => setDashboardOpen(false)}
-        >
-          <IconClose />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="ghost-btn"
+            title="Recenter"
+            onClick={() => void recenterWindow()}
+          >
+            <IconRecenter />
+          </button>
+          <button
+            type="button"
+            className={`ghost-btn ${keepDashboardOpen ? "is-on" : ""}`}
+            title={
+              keepDashboardOpen
+                ? "Auto-collapse off — dashboard stays open until you close it"
+                : "Auto-collapse on — dashboard closes when you click away"
+            }
+            aria-pressed={keepDashboardOpen}
+            onClick={() => setKeepDashboardOpen(!keepDashboardOpen)}
+          >
+            <IconPin />
+          </button>
+          <button type="button" className="outline-btn" onClick={() => void openDonationPage()}>
+            Donate
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            title="Close"
+            onClick={() => setDashboardOpen(false)}
+          >
+            <IconClose />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-4">

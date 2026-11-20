@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { motion } from "motion/react";
+import { useEffect, useRef } from "react";
+import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { trackCoverUrl } from "../services/music/musicApi";
 import { useMusicStore } from "../stores/musicStore";
@@ -12,6 +12,10 @@ import {
   IconPlay,
   IconPrev,
 } from "./icons";
+
+const HOVER_COL = 24;
+const HOVER_GAP = 6;
+const EXPAND = { type: "spring" as const, stiffness: 380, damping: 34 };
 
 export function Pill() {
   const leaveTimer = useRef<number | null>(null);
@@ -33,6 +37,19 @@ export function Pill() {
   const track = index >= 0 ? queue[index] : null;
   const cover = trackCoverUrl(track?.coverPath);
   const expanded = hoverExpanded || dashboardOpen;
+  // One progress value keeps the left column and the compensating shift in lockstep.
+  // The pill is centered, so a wider pill would creep both directions; shifting left
+  // by half the added width holds the body still and lets the controls grow left.
+  const progress = useMotionValue(expanded ? 1 : 0);
+  const hoverWidth = useTransform(progress, (v) => v * HOVER_COL);
+  const hoverGap = useTransform(progress, (v) => v * HOVER_GAP);
+  const hoverOpacity = useTransform(progress, (v) => v);
+  const shiftX = useTransform(progress, (v) => v * -((HOVER_COL + HOVER_GAP) / 2));
+
+  useEffect(() => {
+    const anim = animate(progress, expanded ? 1 : 0, EXPAND);
+    return () => anim.stop();
+  }, [expanded, progress]);
 
   const onEnter = () => {
     if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
@@ -45,9 +62,10 @@ export function Pill() {
   };
 
   return (
-    <div
+    <motion.div
       className="inline-flex max-w-full items-center overflow-hidden border border-[var(--border)] bg-[var(--surface)] px-2 py-2"
       style={{
+        x: shiftX,
         borderRadius: "var(--radius-pill)",
         boxShadow: "0 4px 10px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.12)",
       }}
@@ -56,12 +74,7 @@ export function Pill() {
     >
       <motion.div
         className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden"
-        animate={{
-          width: expanded ? 24 : 0,
-          opacity: expanded ? 1 : 0,
-          marginRight: expanded ? 6 : 0,
-        }}
-        transition={{ type: "spring", stiffness: 380, damping: 34 }}
+        style={{ width: hoverWidth, opacity: hoverOpacity, marginRight: hoverGap }}
       >
         <button
           type="button"
@@ -75,6 +88,7 @@ export function Pill() {
           type="button"
           className="white-circle util"
           title="Open dashboard"
+          data-dashboard-toggle
           onClick={() => setDashboardOpen(!dashboardOpen)}
         >
           <IconGear size={11} />
@@ -85,6 +99,7 @@ export function Pill() {
         <div
           className="mr-2 flex h-11 w-11 shrink-0 cursor-grab items-center justify-center overflow-hidden bg-[var(--pill-art)] active:cursor-grabbing"
           style={{ borderRadius: "var(--radius-art)" }}
+          data-drag-handle
           onMouseDown={() => void getCurrentWindow().startDragging()}
           title="Drag to move"
         >
@@ -129,6 +144,6 @@ export function Pill() {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

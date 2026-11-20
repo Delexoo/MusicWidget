@@ -29,8 +29,14 @@ type MusicState = {
   liked: string[];
   status: string | null;
   downloadUrl: string;
+  /** When true, clicking away does not close the dashboard. */
+  keepDashboardOpen: boolean;
+  /** Native dialogs increment this so a focus loss does not auto-collapse. */
+  collapseHold: number;
   hydrate: () => Promise<void>;
   setDashboardOpen: (open: boolean) => void;
+  setKeepDashboardOpen: (on: boolean) => void;
+  pushCollapseHold: () => () => void;
   setHoverExpanded: (open: boolean) => void;
   setDownloadUrl: (url: string) => void;
   selectPlaylist: (name: string) => Promise<void>;
@@ -66,6 +72,16 @@ function resolvePlayPath(track: TrackInfo, vocalsOff: boolean) {
 
 let playbackGen = 0;
 
+const KEEP_OPEN_KEY = "musicwidget.keepDashboardOpen";
+
+function readKeepDashboardOpen() {
+  try {
+    return localStorage.getItem(KEEP_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export const useMusicStore = create<MusicState>((set, get) => {
   audioEngine.setHandlers({
     onTime: (current, duration) => set({ currentTime: current, duration }),
@@ -98,6 +114,8 @@ export const useMusicStore = create<MusicState>((set, get) => {
     liked: [],
     status: null,
     downloadUrl: "",
+    keepDashboardOpen: readKeepDashboardOpen(),
+    collapseHold: 0,
 
     hydrate: async () => {
       try {
@@ -130,6 +148,20 @@ export const useMusicStore = create<MusicState>((set, get) => {
 
     setDashboardOpen: (open) =>
       set({ dashboardOpen: open, hoverExpanded: open || get().hoverExpanded }),
+    setKeepDashboardOpen: (on) => {
+      try {
+        localStorage.setItem(KEEP_OPEN_KEY, on ? "1" : "0");
+      } catch {
+        /* private mode */
+      }
+      set({ keepDashboardOpen: on });
+    },
+    pushCollapseHold: () => {
+      set((s) => ({ collapseHold: s.collapseHold + 1 }));
+      return () => {
+        set((s) => ({ collapseHold: Math.max(0, s.collapseHold - 1) }));
+      };
+    },
     setHoverExpanded: (open) => set({ hoverExpanded: open }),
     setDownloadUrl: (url) => set({ downloadUrl: url }),
 

@@ -54,6 +54,7 @@ export function AddMusicPanel({
 
   const pickFiles = async () => {
     if (!playlistName) return;
+    const release = useMusicStore.getState().pushCollapseHold();
     try {
       const selected = await open({
         multiple: true,
@@ -74,11 +75,14 @@ export function AddMusicPanel({
       useMusicStore.setState({
         status: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      release();
     }
   };
 
   const pickFolder = async () => {
     if (!playlistName) return;
+    const release = useMusicStore.getState().pushCollapseHold();
     try {
       const selected = await open({
         directory: true,
@@ -92,6 +96,8 @@ export function AddMusicPanel({
       useMusicStore.setState({
         status: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      release();
     }
   };
 
